@@ -3,14 +3,7 @@ import Instagram from "next-auth/providers/instagram";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  providers: [
-    Instagram({
-      // переопределяем как СТРОКУ (тот же тип, что и дефолт в исходнике провайдера),
-      // чтобы не ломать deep-merge при смешивании строки и объекта
-      authorization:
-        "https://api.instagram.com/oauth/authorize?scope=instagram_business_basic,instagram_manage_comments,instagram_business_manage_messages",
-    }),
-  ],
+  providers: [Instagram],
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account) {
