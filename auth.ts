@@ -5,12 +5,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   providers: [
     Instagram({
-      authorization: {
-        params: {
-          scope:
-            "instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages",
-        },
-      },
+      // переопределяем как СТРОКУ (тот же тип, что и дефолт в исходнике провайдера),
+      // чтобы не ломать deep-merge при смешивании строки и объекта
+      authorization:
+        "https://api.instagram.com/oauth/authorize?scope=instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages",
     }),
   ],
   callbacks: {
