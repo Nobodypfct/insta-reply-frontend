@@ -8,7 +8,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // переопределяем как СТРОКУ (тот же тип, что и дефолт в исходнике провайдера),
       // чтобы не ломать deep-merge при смешивании строки и объекта
       authorization:
-        "https://api.instagram.com/oauth/authorize?scope=instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages",
+        "https://api.instagram.com/oauth/authorize?scope=instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages,pages_read_engagement,public_profile",
     }),
   ],
   callbacks: {
