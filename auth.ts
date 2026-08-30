@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Instagram from "next-auth/providers/instagram";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Instagram({
       clientId: process.env.IG_APP_ID,
