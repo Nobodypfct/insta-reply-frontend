@@ -3,7 +3,12 @@ import Instagram from "next-auth/providers/instagram";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  providers: [Instagram],
+  providers: [
+    Instagram({
+      authorization:
+        "https://api.instagram.com/oauth/authorize?scope=instagram_business_basic,instagram_manage_comments,instagram_business_manage_messages",
+    }),
+  ],
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account) {
