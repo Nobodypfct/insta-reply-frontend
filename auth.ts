@@ -34,12 +34,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             throw new Error(`Instagram OAuth error: ${data.error_message}`);
           }
 
-          // Instagram не всегда присылает token_type, а oauth4webapi требует его строкой -
-          // подставляем вручную, раз сам обмен токена прошёл успешно
+          // сразу меняем короткоживущий токен на долгоживущий (60 дней),
+          // как в рабочем примере - делаем это ДО того как отдать ответ Auth.js
+          const longLivedRes = await fetch(
+            `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${provider.clientSecret}&access_token=${data.access_token}`,
+          );
+          const longLivedData = await longLivedRes.json();
+
           return {
             tokens: {
-              access_token: data.access_token,
+              access_token: longLivedData.access_token || data.access_token,
               token_type: "bearer",
+              expires_in: longLivedData.expires_in,
               user_id: data.user_id,
             },
           };
