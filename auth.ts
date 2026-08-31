@@ -20,6 +20,11 @@ function InstagramProvider(
         const response = await fetch(input, init);
         const json = await response.json();
 
+        console.log(
+          "DEBUG step1 (code exchange) response:",
+          JSON.stringify(json),
+        );
+
         const response2 = await fetch(
           `https://graph.instagram.com/access_token?${new URLSearchParams({
             grant_type: "ig_exchange_token",
@@ -29,6 +34,11 @@ function InstagramProvider(
           { method: "GET" },
         );
         const json2 = await response2.json();
+
+        console.log(
+          "DEBUG step2 (long-lived exchange) response:",
+          JSON.stringify(json2),
+        );
 
         return Response.json({
           ...json2,
