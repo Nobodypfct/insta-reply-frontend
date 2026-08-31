@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
-import { createClient } from '@/lib/supabase';
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase";
 
 type IgAccount = {
   id: string;
@@ -24,19 +25,21 @@ function DashboardContent() {
   const [accounts, setAccounts] = useState<IgAccount[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const connectedUsername = searchParams.get('connected');
-  const connectError = searchParams.get('connect_error');
+  const connectedUsername = searchParams.get("connected");
+  const connectError = searchParams.get("connect_error");
 
   useEffect(() => {
     async function init() {
       const { data } = await supabase.auth.getUser();
       if (!data.user) {
-        router.push('/login');
+        router.push("/login");
         return;
       }
       setUserId(data.user.id);
 
-      const res = await fetch(`${API_URL}/api/ig-accounts?user_id=${data.user.id}`);
+      const res = await fetch(
+        `${API_URL}/api/ig-accounts?user_id=${data.user.id}`,
+      );
       const json = await res.json();
       setAccounts(json.accounts || []);
       setLoading(false);
@@ -46,18 +49,20 @@ function DashboardContent() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push("/login");
   }
 
   function handleConnect() {
     if (!userId) return;
-    signIn('instagram', { callbackUrl: '/instagram-connected' });
+    signIn("instagram", { callbackUrl: "/instagram-connected" });
   }
 
   return (
     <main className="min-h-screen bg-[#0B0F14] text-[#E7ECF2]">
       <header className="border-b border-[#1B2430] px-6 py-4 flex items-center justify-between">
-        <span className="text-sm tracking-wide text-[#7C8A9C]">INSTA-REPLY</span>
+        <span className="text-sm tracking-wide text-[#7C8A9C]">
+          INSTA-REPLY
+        </span>
         <button
           onClick={handleLogout}
           className="text-sm text-[#7C8A9C] hover:text-[#E7ECF2] transition-colors"
@@ -84,7 +89,8 @@ function DashboardContent() {
         )}
         {connectError && (
           <div className="mb-6 rounded-xl border border-[#F87171]/30 bg-[#F87171]/10 px-4 py-3 text-sm">
-            Не получилось подключить аккаунт ({connectError}). Попробуйте ещё раз.
+            Не получилось подключить аккаунт ({connectError}). Попробуйте ещё
+            раз.
           </div>
         )}
 
@@ -93,8 +99,8 @@ function DashboardContent() {
         ) : accounts.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#232D3A] px-6 py-14 text-center">
             <p className="text-sm text-[#7C8A9C] mb-4">
-              Пока нет подключённых аккаунтов. Подключите Instagram, чтобы включить
-              автоответ на комментарии и DM.
+              Пока нет подключённых аккаунтов. Подключите Instagram, чтобы
+              включить автоответ на комментарии и DM.
             </p>
             <button
               onClick={handleConnect}
@@ -106,26 +112,28 @@ function DashboardContent() {
         ) : (
           <ul className="space-y-3">
             {accounts.map((acc) => (
-              <li
+              <Link
                 key={acc.id}
-                className="rounded-xl border border-[#232D3A] bg-[#141B24] px-5 py-4 flex items-center justify-between"
+                href={`/dashboard/accounts/${acc.id}`}
+                className="rounded-xl border border-[#232D3A] bg-[#141B24] px-5 py-4 flex items-center justify-between hover:border-[#4F7CFF]/50 transition-colors"
               >
                 <div>
                   <p className="text-sm font-medium">@{acc.username}</p>
                   <p className="text-xs text-[#7C8A9C] mt-0.5">
-                    Подключён {new Date(acc.created_at).toLocaleDateString('ru-RU')}
+                    Подключён{" "}
+                    {new Date(acc.created_at).toLocaleDateString("ru-RU")}
                   </p>
                 </div>
                 <span
                   className={`text-xs px-2.5 py-1 rounded-full ${
                     acc.webhook_enabled
-                      ? 'bg-[#22C55E]/15 text-[#4ADE80]'
-                      : 'bg-[#7C8A9C]/15 text-[#7C8A9C]'
+                      ? "bg-[#22C55E]/15 text-[#4ADE80]"
+                      : "bg-[#7C8A9C]/15 text-[#7C8A9C]"
                   }`}
                 >
-                  {acc.webhook_enabled ? 'Включён' : 'Выключен'}
+                  {acc.webhook_enabled ? "Включён" : "Выключен"}
                 </span>
-              </li>
+              </Link>
             ))}
           </ul>
         )}
