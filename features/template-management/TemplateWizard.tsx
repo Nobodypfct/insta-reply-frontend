@@ -11,6 +11,8 @@ const DEFAULT_DM_TEXT =
   "Привет! Спасибо за комментарий 🙌 Вот то, что ты искал(а): [ССЫЛКА]";
 const DEFAULT_REPLY_TEXT = "Спасибо! Ссылку отправил тебе в директ 🚀";
 
+type WizardStep = 0 | 1 | 2 | 3;
+
 type TemplateWizardProps = {
   igAccountId: string;
   username: string;
@@ -28,7 +30,7 @@ export function TemplateWizard({
   onClose,
   onSaved,
 }: TemplateWizardProps) {
-  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const [step, setStep] = useState<WizardStep>(0);
   const [scope, setScope] = useState<"post" | "any">(
     editingTemplate?.post_id ? "post" : "any",
   );
@@ -84,12 +86,21 @@ export function TemplateWizard({
         return;
       }
       setStep(2);
+      return;
+    }
+    if (step === 2) {
+      const hasReply = replyTexts.some((t) => t.trim());
+      if (!hasReply) {
+        setStepError("Добавьте хотя бы один вариант ответа на комментарий.");
+        return;
+      }
+      setStep(3);
     }
   }
 
   function goBack() {
     setStepError(null);
-    setStep((s) => (s === 0 ? 0 : ((s - 1) as 0 | 1)));
+    setStep((s) => (s === 0 ? 0 : ((s - 1) as WizardStep)));
   }
 
   async function handleSubmit() {
@@ -138,7 +149,7 @@ export function TemplateWizard({
         >
           ← Отмена
         </button>
-        <p className="text-xs text-[#7C8A9C]">Шаг {step + 1} из 3</p>
+        <p className="text-xs text-[#7C8A9C]">Шаг {step + 1} из 4</p>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -258,36 +269,16 @@ export function TemplateWizard({
                 ← Назад
               </button>
               <h2 className="mb-1 text-xl font-semibold text-[#E7ECF2]">
-                Они получат
+                Ответ на комментарий
               </h2>
               <p className="mb-6 text-sm text-[#7C8A9C]">
-                Настройте, что бот ответит под комментарием и что пришлёт в
-                директ.
+                Если вариантов несколько — бот выберет случайный, чтобы ответы
+                не выглядели одинаково под разными комментариями.
               </p>
-
-              <div className="mb-4 rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-medium text-[#E7ECF2]">
-                    приветственное DM
-                  </p>
-                  <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-[#4F7CFF]">
-                    <span className="inline-block h-4 w-4 translate-x-4 transform rounded-full bg-white" />
-                  </span>
-                </div>
-                <textarea
-                  value={dmText}
-                  onChange={(e) => setDmText(e.target.value)}
-                  rows={4}
-                  className="w-full resize-none rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
-                />
-                <p className="mt-1.5 text-xs text-[#7C8A9C]">
-                  Обязательное поле — отправляется в директ подписчику
-                </p>
-              </div>
 
               <div className="rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
                 <p className="mb-3 text-sm font-medium text-[#E7ECF2]">
-                  ответы на комментарий
+                  варианты ответа
                 </p>
                 <div className="space-y-2">
                   {replyTexts.map((text, i) => (
@@ -322,6 +313,54 @@ export function TemplateWizard({
               )}
 
               <button
+                onClick={goNext}
+                className="mt-6 w-full rounded-lg bg-[#4F7CFF] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#3D68EA]"
+              >
+                Далее
+              </button>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <button
+                onClick={goBack}
+                className="mb-4 text-xs text-[#7C8A9C] transition-colors hover:text-[#E7ECF2]"
+              >
+                ← Назад
+              </button>
+              <h2 className="mb-1 text-xl font-semibold text-[#E7ECF2]">
+                Они получат
+              </h2>
+              <p className="mb-6 text-sm text-[#7C8A9C]">
+                Настройте сообщение, которое бот пришлёт в директ.
+              </p>
+
+              <div className="rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-medium text-[#E7ECF2]">
+                    приветственное DM
+                  </p>
+                  <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-[#4F7CFF]">
+                    <span className="inline-block h-4 w-4 translate-x-4 transform rounded-full bg-white" />
+                  </span>
+                </div>
+                <textarea
+                  value={dmText}
+                  onChange={(e) => setDmText(e.target.value)}
+                  rows={4}
+                  className="w-full resize-none rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
+                />
+                <p className="mt-1.5 text-xs text-[#7C8A9C]">
+                  Обязательное поле — отправляется в директ подписчику
+                </p>
+              </div>
+
+              {stepError && (
+                <p className="mt-4 text-sm text-[#F87171]">{stepError}</p>
+              )}
+
+              <button
                 onClick={handleSubmit}
                 disabled={saving}
                 className="mt-6 w-full rounded-lg bg-[#4F7CFF] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#3D68EA] disabled:opacity-50"
@@ -338,7 +377,7 @@ export function TemplateWizard({
 
         <div className="hidden flex-1 items-center justify-center overflow-hidden bg-[#05070A] p-10 lg:flex">
           <PhonePreview
-            step={step}
+            step={step === 0 ? 0 : step === 3 ? 2 : 1}
             username={username}
             post={
               selectedPost
@@ -352,6 +391,8 @@ export function TemplateWizard({
             keyword={keyword}
             keywordMode={keywordMode}
             dmText={dmText}
+            showReply={step === 2}
+            replyText={replyTexts.find((t) => t.trim())?.trim() ?? ""}
           />
         </div>
       </div>

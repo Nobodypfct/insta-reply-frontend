@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronLeft,
@@ -35,6 +36,8 @@ type PhonePreviewProps = {
   keyword: string;
   keywordMode: "specific" | "any";
   dmText: string;
+  showReply: boolean;
+  replyText: string;
 };
 
 const REACTIONS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"];
@@ -47,6 +50,8 @@ export function PhonePreview({
   keyword,
   keywordMode,
   dmText,
+  showReply,
+  replyText,
 }: PhonePreviewProps) {
   const avatarLetter = (username || "?").slice(0, 1).toUpperCase();
 
@@ -97,7 +102,13 @@ export function PhonePreview({
                       exit={{ y: "100%" }}
                       transition={{ type: "spring", damping: 30, stiffness: 300 }}
                     >
-                      <CommentsSheet commentText={commentText} />
+                      <CommentsSheet
+                        commentText={commentText}
+                        username={username}
+                        avatarLetter={avatarLetter}
+                        showReply={showReply}
+                        replyText={replyText}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -210,7 +221,33 @@ function PostScreen({
   );
 }
 
-function CommentsSheet({ commentText }: { commentText: string }) {
+function CommentsSheet({
+  commentText,
+  username,
+  avatarLetter,
+  showReply,
+  replyText,
+}: {
+  commentText: string;
+  username: string;
+  avatarLetter: string;
+  showReply: boolean;
+  replyText: string;
+}) {
+  const [replyPhase, setReplyPhase] = useState<"idle" | "typing" | "shown">(
+    "idle",
+  );
+
+  useEffect(() => {
+    if (!showReply) {
+      setReplyPhase("idle");
+      return;
+    }
+    setReplyPhase("typing");
+    const timer = setTimeout(() => setReplyPhase("shown"), 700);
+    return () => clearTimeout(timer);
+  }, [showReply, replyText]);
+
   return (
     <div className="flex h-full flex-col rounded-t-2xl border-t border-[#232D3A] bg-[#141B24]">
       <div className="flex justify-center pt-2">
@@ -220,16 +257,48 @@ function CommentsSheet({ commentText }: { commentText: string }) {
         Комментарии
       </p>
 
-      <div className="flex-1 px-4 py-3">
+      <div className="flex-1 overflow-y-auto px-4 py-3">
         <div className="flex gap-2.5">
           <div className="h-7 w-7 shrink-0 rounded-full bg-[#232D3A]" />
-          <div className="text-xs">
+          <div className="flex-1 text-xs">
             <p className="text-white/90">
               <span className="font-medium">кто_то</span>{" "}
               <span className="text-white/40">сейчас</span>
             </p>
             <p className="mt-0.5 text-white/80">{commentText}</p>
             <p className="mt-1 text-white/30">Ответить</p>
+
+            <AnimatePresence>
+              {replyPhase !== "idle" && (
+                <motion.div
+                  key="bot-reply"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="mt-3 flex gap-2 border-l border-[#232D3A] pl-3"
+                >
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4F7CFF] text-[9px] font-semibold">
+                    {avatarLetter}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white/90">
+                      <span className="font-medium">
+                        {username || "аккаунт"}
+                      </span>{" "}
+                      <span className="text-white/40">сейчас</span>
+                    </p>
+                    {replyPhase === "typing" ? (
+                      <p className="mt-0.5 text-white/40">···</p>
+                    ) : (
+                      <p className="mt-0.5 text-white/80">
+                        {replyText || "Спасибо за комментарий 🙌"}
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
