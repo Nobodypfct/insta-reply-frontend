@@ -10,6 +10,8 @@ import { PhonePreview } from "./PhonePreview";
 const DEFAULT_DM_TEXT =
   "Привет! Спасибо за комментарий 🙌 Вот то, что ты искал(а): [ССЫЛКА]";
 const DEFAULT_REPLY_TEXT = "Спасибо! Ссылку отправил тебе в директ 🚀";
+const DEFAULT_BUTTON_TEXT_INITIAL = "Получить";
+const DEFAULT_BUTTON_TEXT_FOLLOW_CONFIRM = "Я подписался";
 
 type WizardStep = 0 | 1 | 2 | 3;
 
@@ -48,6 +50,22 @@ export function TemplateWizard({
     editingTemplate?.template_replies?.length
       ? editingTemplate.template_replies.map((r) => r.text)
       : [DEFAULT_REPLY_TEXT],
+  );
+  const [requireFollowCheck, setRequireFollowCheck] = useState(
+    editingTemplate?.require_follow_check ?? false,
+  );
+  const [buttonTextInitial, setButtonTextInitial] = useState(
+    editingTemplate?.button_text_initial || DEFAULT_BUTTON_TEXT_INITIAL,
+  );
+  const [messageIfNotFollowing, setMessageIfNotFollowing] = useState(
+    editingTemplate?.message_if_not_following ?? "",
+  );
+  const [buttonTextFollowConfirm, setButtonTextFollowConfirm] = useState(
+    editingTemplate?.button_text_follow_confirm ||
+      DEFAULT_BUTTON_TEXT_FOLLOW_CONFIRM,
+  );
+  const [messageAfterFollow, setMessageAfterFollow] = useState(
+    editingTemplate?.message_after_follow ?? "",
   );
   const [saving, setSaving] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
@@ -113,6 +131,19 @@ export function TemplateWizard({
       setStepError("Текст приветственного DM не может быть пустым.");
       return;
     }
+    if (requireFollowCheck) {
+      if (
+        !buttonTextInitial.trim() ||
+        !messageIfNotFollowing.trim() ||
+        !buttonTextFollowConfirm.trim() ||
+        !messageAfterFollow.trim()
+      ) {
+        setStepError(
+          "Заполните все поля проверки подписки — они обязательны, если тумблер включён.",
+        );
+        return;
+      }
+    }
 
     setSaving(true);
     setStepError(null);
@@ -122,6 +153,15 @@ export function TemplateWizard({
       keyword: keywordMode === "any" ? null : keyword.trim() || null,
       dmText: dmText.trim(),
       replyTexts: trimmedReplies,
+      requireFollowCheck,
+      buttonTextInitial: requireFollowCheck ? buttonTextInitial.trim() : "",
+      messageIfNotFollowing: requireFollowCheck
+        ? messageIfNotFollowing.trim()
+        : "",
+      buttonTextFollowConfirm: requireFollowCheck
+        ? buttonTextFollowConfirm.trim()
+        : "",
+      messageAfterFollow: requireFollowCheck ? messageAfterFollow.trim() : "",
     };
 
     try {
@@ -345,6 +385,9 @@ export function TemplateWizard({
                     <span className="inline-block h-4 w-4 translate-x-4 transform rounded-full bg-white" />
                   </span>
                 </div>
+                <label className="mb-1.5 block text-xs text-[#7C8A9C]">
+                  {requireFollowCheck ? "Открывающее сообщение" : "Текст сообщения"}
+                </label>
                 <textarea
                   value={dmText}
                   onChange={(e) => setDmText(e.target.value)}
@@ -354,6 +397,92 @@ export function TemplateWizard({
                 <p className="mt-1.5 text-xs text-[#7C8A9C]">
                   Обязательное поле — отправляется в директ подписчику
                 </p>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
+                <button
+                  type="button"
+                  onClick={() => setRequireFollowCheck((v) => !v)}
+                  className="flex w-full items-center justify-between"
+                >
+                  <span className="text-left">
+                    <p className="text-sm font-medium text-[#E7ECF2]">
+                      Проверять подписку перед выдачей
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#7C8A9C]">
+                      Бот попросит подписаться, прежде чем прислать материал
+                    </p>
+                  </span>
+                  <span
+                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                      requireFollowCheck ? "bg-[#4F7CFF]" : "bg-[#232D3A]"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        requireFollowCheck ? "translate-x-4" : "translate-x-0.5"
+                      }`}
+                    />
+                  </span>
+                </button>
+
+                {requireFollowCheck && (
+                  <div className="mt-4 space-y-4 border-t border-[#232D3A] pt-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs text-[#7C8A9C]">
+                        Текст кнопки в открывающем сообщении
+                      </label>
+                      <input
+                        type="text"
+                        value={buttonTextInitial}
+                        onChange={(e) => setButtonTextInitial(e.target.value)}
+                        className="w-full rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs text-[#7C8A9C]">
+                        Сообщение, если подписки нет
+                      </label>
+                      <textarea
+                        value={messageIfNotFollowing}
+                        onChange={(e) =>
+                          setMessageIfNotFollowing(e.target.value)
+                        }
+                        rows={3}
+                        placeholder="Похоже, ты ещё не подписан(а). Подпишись и жми кнопку ниже 👇"
+                        className="w-full resize-none rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs text-[#7C8A9C]">
+                        Текст кнопки «Я подписался»
+                      </label>
+                      <input
+                        type="text"
+                        value={buttonTextFollowConfirm}
+                        onChange={(e) =>
+                          setButtonTextFollowConfirm(e.target.value)
+                        }
+                        className="w-full rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs text-[#7C8A9C]">
+                        Финальное сообщение
+                      </label>
+                      <textarea
+                        value={messageAfterFollow}
+                        onChange={(e) => setMessageAfterFollow(e.target.value)}
+                        rows={3}
+                        placeholder="Спасибо! Вот твоя ссылка: [ССЫЛКА]"
+                        className="w-full resize-none rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {stepError && (
@@ -393,6 +522,11 @@ export function TemplateWizard({
             dmText={dmText}
             showReply={step === 2}
             replyText={replyTexts.find((t) => t.trim())?.trim() ?? ""}
+            requireFollowCheck={requireFollowCheck}
+            buttonTextInitial={buttonTextInitial}
+            messageIfNotFollowing={messageIfNotFollowing}
+            buttonTextFollowConfirm={buttonTextFollowConfirm}
+            messageAfterFollow={messageAfterFollow}
           />
         </div>
       </div>

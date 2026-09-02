@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { getTemplates, deleteTemplate, toggleTemplateActive } from "@/entities/template/api";
 import type { Template } from "@/entities/template/types";
 import { getMedia } from "@/entities/ig-account/api";
@@ -129,15 +130,26 @@ export default function TemplatesPage() {
                         )}
                       </div>
                     </div>
-                    <span
-                      className={`text-xs px-2.5 py-1 rounded-full shrink-0 ${
-                        tpl.is_active
-                          ? "bg-[#22C55E]/15 text-[#4ADE80]"
-                          : "bg-[#7C8A9C]/15 text-[#7C8A9C]"
-                      }`}
-                    >
-                      {tpl.is_active ? "Включён" : "Выключен"}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {tpl.require_follow_check && (
+                        <span
+                          title="Проверка подписки перед выдачей"
+                          className="flex items-center gap-1 rounded-full bg-[#4F7CFF]/15 px-2.5 py-1 text-xs text-[#4F7CFF]"
+                        >
+                          <ShieldCheck size={12} />
+                          Подписка
+                        </span>
+                      )}
+                      <span
+                        className={`text-xs px-2.5 py-1 rounded-full ${
+                          tpl.is_active
+                            ? "bg-[#22C55E]/15 text-[#4ADE80]"
+                            : "bg-[#7C8A9C]/15 text-[#7C8A9C]"
+                        }`}
+                      >
+                        {tpl.is_active ? "Включён" : "Выключен"}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="text-xs text-[#7C8A9C] space-y-1 mb-4">

@@ -38,6 +38,11 @@ type PhonePreviewProps = {
   dmText: string;
   showReply: boolean;
   replyText: string;
+  requireFollowCheck: boolean;
+  buttonTextInitial: string;
+  messageIfNotFollowing: string;
+  buttonTextFollowConfirm: string;
+  messageAfterFollow: string;
 };
 
 const REACTIONS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"];
@@ -52,6 +57,11 @@ export function PhonePreview({
   dmText,
   showReply,
   replyText,
+  requireFollowCheck,
+  buttonTextInitial,
+  messageIfNotFollowing,
+  buttonTextFollowConfirm,
+  messageAfterFollow,
 }: PhonePreviewProps) {
   const avatarLetter = (username || "?").slice(0, 1).toUpperCase();
 
@@ -126,6 +136,11 @@ export function PhonePreview({
                   username={username}
                   avatarLetter={avatarLetter}
                   dmText={dmText}
+                  requireFollowCheck={requireFollowCheck}
+                  buttonTextInitial={buttonTextInitial}
+                  messageIfNotFollowing={messageIfNotFollowing}
+                  buttonTextFollowConfirm={buttonTextFollowConfirm}
+                  messageAfterFollow={messageAfterFollow}
                 />
               </motion.div>
             )}
@@ -319,15 +334,37 @@ function CommentsSheet({
   );
 }
 
+type DMMessage = { text: string; button: string | null };
+
 function DMScreen({
   username,
   avatarLetter,
   dmText,
+  requireFollowCheck,
+  buttonTextInitial,
+  messageIfNotFollowing,
+  buttonTextFollowConfirm,
+  messageAfterFollow,
 }: {
   username: string;
   avatarLetter: string;
   dmText: string;
+  requireFollowCheck: boolean;
+  buttonTextInitial: string;
+  messageIfNotFollowing: string;
+  buttonTextFollowConfirm: string;
+  messageAfterFollow: string;
 }) {
+  const messages: DMMessage[] = requireFollowCheck
+    ? [
+        { text: dmText, button: buttonTextInitial },
+        { text: messageIfNotFollowing, button: buttonTextFollowConfirm },
+        { text: messageAfterFollow, button: null },
+      ]
+    : [{ text: dmText, button: null }];
+
+  const visibleMessages = messages.filter((m) => m.text.trim());
+
   return (
     <div className="flex h-full flex-col pt-11 text-white">
       <div className="flex items-center gap-3 border-b border-[#141B24] px-4 py-2.5">
@@ -342,16 +379,31 @@ function DMScreen({
         <Video size={18} className="text-white/50" />
       </div>
 
-      <div className="flex flex-1 flex-col justify-end gap-2 px-4 py-4">
-        {dmText.trim() ? (
-          <div className="flex max-w-[85%] items-end gap-2">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4F7CFF] text-[10px] font-semibold">
-              {avatarLetter}
-            </div>
-            <div className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-[#232D3A] px-3.5 py-2.5 text-sm leading-relaxed text-white/90">
-              {dmText}
-            </div>
-          </div>
+      <div className="flex flex-1 flex-col justify-end gap-3 overflow-y-auto px-4 py-4">
+        {visibleMessages.length > 0 ? (
+          visibleMessages.map((m, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.45, duration: 0.3, ease: "easeOut" }}
+              className="flex max-w-[85%] flex-col items-start gap-1.5"
+            >
+              <div className="flex items-end gap-2">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4F7CFF] text-[10px] font-semibold">
+                  {avatarLetter}
+                </div>
+                <div className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-[#232D3A] px-3.5 py-2.5 text-sm leading-relaxed text-white/90">
+                  {m.text}
+                </div>
+              </div>
+              {m.button && m.button.trim() && (
+                <div className="ml-8 rounded-full border border-[#4F7CFF]/40 bg-[#4F7CFF]/10 px-3.5 py-1.5 text-xs font-medium text-[#4F7CFF]">
+                  {m.button}
+                </div>
+              )}
+            </motion.div>
+          ))
         ) : (
           <p className="text-center text-xs text-white/30">
             Введите текст сообщения слева
