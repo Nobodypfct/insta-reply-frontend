@@ -1,54 +1,47 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function SignupPage() {
   const supabase = createClient();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendDone, setResendDone] = useState(false);
+  const [signupDone, setSignupDone] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+      },
     });
     setLoading(false);
     if (error) {
-      if (error.code === "email_not_confirmed") {
-        setUnconfirmedEmail(email);
-        setError(null);
-        return;
-      }
       setError(error.message);
       return;
     }
-    router.push("/dashboard");
-  }
 
-  async function handleResendConfirmation() {
-    if (!unconfirmedEmail) return;
-    setResendLoading(true);
-    await supabase.auth.resend({
-      email: unconfirmedEmail,
-      type: "signup",
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
-    });
-    setResendLoading(false);
-    setResendDone(true);
+    // Supabase не даёт прямой ошибки "уже зарегистрирован" (по соображениям
+    // безопасности), но если identities пустой - значит юзер с таким email
+    // уже существует и подтверждён
+    if (data.user && data.user.identities?.length === 0) {
+      setError(
+        "Этот email уже зарегистрирован. Попробуйте войти или восстановить пароль.",
+      );
+      return;
+    }
+
+    setSignupDone(true);
   }
 
   async function handleOAuth(provider: "google" | "facebook") {
@@ -65,38 +58,13 @@ export default function LoginPage() {
           <div className="inline-flex items-center gap-2 text-sm tracking-wide text-[#7C8A9C] mb-2">
             INSTA-REPLY
           </div>
-          <h1 className="text-2xl font-semibold">Войти в кабинет</h1>
+          <h1 className="text-2xl font-semibold">Создать аккаунт</h1>
         </div>
 
-        {unconfirmedEmail ? (
-          <div className="rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/10 p-5 text-sm leading-relaxed space-y-3">
-            <p>
-              Email <strong>{unconfirmedEmail}</strong> ещё не подтверждён.
-              Проверьте почту (и папку «Спам») — там должна быть ссылка для
-              подтверждения.
-            </p>
-            {resendDone ? (
-              <p className="text-[#4ADE80]">Письмо отправлено повторно ✓</p>
-            ) : (
-              <button
-                onClick={handleResendConfirmation}
-                disabled={resendLoading}
-                className="text-sm text-[#4F7CFF] hover:underline disabled:opacity-50"
-              >
-                {resendLoading ? "Отправляем…" : "Отправить письмо ещё раз"}
-              </button>
-            )}
-            <div>
-              <button
-                onClick={() => {
-                  setUnconfirmedEmail(null);
-                  setResendDone(false);
-                }}
-                className="text-xs text-[#7C8A9C] hover:text-[#E7ECF2] transition-colors"
-              >
-                ← Назад
-              </button>
-            </div>
+        {signupDone ? (
+          <div className="rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 p-5 text-sm leading-relaxed">
+            Проверьте почту — мы отправили ссылку для подтверждения аккаунта на{" "}
+            {email}.
           </div>
         ) : (
           <>
@@ -116,15 +84,9 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-sm text-[#7C8A9C]">Пароль</label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-xs text-[#4F7CFF] hover:underline"
-                  >
-                    Забыли пароль?
-                  </Link>
-                </div>
+                <label className="block text-sm text-[#7C8A9C] mb-1.5">
+                  Пароль
+                </label>
                 <input
                   type="password"
                   required
@@ -147,7 +109,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full rounded-lg bg-[#4F7CFF] hover:bg-[#3D68EA] disabled:opacity-50 transition-colors text-white text-sm font-medium py-2.5 mt-2"
               >
-                {loading ? "Секунду…" : "Войти"}
+                {loading ? "Секунду…" : "Создать аккаунт"}
               </button>
             </form>
 
@@ -174,11 +136,11 @@ export default function LoginPage() {
           </>
         )}
 
-        {!unconfirmedEmail && (
+        {!signupDone && (
           <p className="text-sm text-[#7C8A9C] text-center mt-6">
-            Ещё нет аккаунта?{" "}
-            <Link href="/signup" className="text-[#4F7CFF] hover:underline">
-              Создать
+            Уже есть аккаунт?{" "}
+            <Link href="/login" className="text-[#4F7CFF] hover:underline">
+              Войти
             </Link>
           </p>
         )}

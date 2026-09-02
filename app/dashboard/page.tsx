@@ -5,16 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
-
-type IgAccount = {
-  id: string;
-  ig_business_id: string;
-  username: string;
-  webhook_enabled: boolean;
-  created_at: string;
-};
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { getAccounts } from "@/entities/ig-account/api";
+import type { IgAccount } from "@/entities/ig-account/types";
 
 function DashboardContent() {
   const router = useRouter();
@@ -38,10 +30,7 @@ function DashboardContent() {
       }
       setUserId(data.user.id);
 
-      const res = await fetch(
-        `${API_URL}/api/ig-accounts?user_id=${data.user.id}`,
-      );
-      const json = await res.json();
+      const json = await getAccounts(data.user.id);
       setAccounts(json.accounts || []);
       setLoading(false);
     }
