@@ -212,6 +212,12 @@ export default function TemplatesPage() {
           igAccountId={igAccountId}
           username={account?.username ?? ""}
           usernameLoading={accountLoading}
+          // TODO: backend пока не подтверждено отдаёт ли avatar_url (см.
+          // задачу "проверить profile_picture_url в graph.instagram.com для
+          // self-serve OAuth-аккаунтов"). Пока account.avatar_url всегда
+          // undefined/null — PhonePreview корректно откатывается на
+          // буквенный fallback.
+          avatarUrl={account?.avatar_url ?? null}
           media={media}
           editingTemplate={editingTemplate}
           onClose={() => setWizardOpen(false)}

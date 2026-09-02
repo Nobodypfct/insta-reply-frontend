@@ -20,6 +20,7 @@ import {
   Film,
   CircleUserRound,
   Wifi,
+  Smile,
 } from "lucide-react";
 
 export type PreviewStep = 0 | 1 | 2;
@@ -33,6 +34,14 @@ type PhonePreviewProps = {
   step: PreviewStep;
   username: string;
   usernameLoading?: boolean;
+  /**
+   * Реальная аватарка подключённого IG-аккаунта. На момент написания
+   * backend её не отдаёт (см. TODO в dashboard/accounts/[id]/page.tsx) —
+   * пропс подготовлен заранее, чтобы включить её было делом одной строчки,
+   * когда/если API начнёт возвращать `avatar_url`. Пока всегда null —
+   * везде используется буквенный fallback.
+   */
+  avatarUrl?: string | null;
   post: PreviewPost;
   isAnyPost: boolean;
   keyword: string;
@@ -53,6 +62,7 @@ export function PhonePreview({
   step,
   username,
   usernameLoading = false,
+  avatarUrl = null,
   post,
   isAnyPost,
   keyword,
@@ -96,6 +106,7 @@ export function PhonePreview({
                   username={username}
                   usernameLoading={usernameLoading}
                   avatarLetter={avatarLetter}
+                  avatarUrl={avatarUrl}
                   post={post}
                   isAnyPost={isAnyPost}
                   showBottomNav={step === 0}
@@ -115,6 +126,7 @@ export function PhonePreview({
                         username={username}
                         usernameLoading={usernameLoading}
                         avatarLetter={avatarLetter}
+                        avatarUrl={avatarUrl}
                         showReply={showReply}
                         replyText={replyText}
                       />
@@ -135,6 +147,7 @@ export function PhonePreview({
                   username={username}
                   usernameLoading={usernameLoading}
                   avatarLetter={avatarLetter}
+                  avatarUrl={avatarUrl}
                   dmText={dmText}
                   requireFollowCheck={requireFollowCheck}
                   buttonTextInitial={buttonTextInitial}
@@ -171,20 +184,25 @@ export function PhonePreview({
  * анимируемого контента, поэтому не "прыгает" при смене шагов визарда.
  * Время намеренно захардкожено на "9:41" — стандарт индустрии для
  * мокапов (так делает и сама Apple в своих маркетинговых материалах).
+ *
+ * Раскладка на CSS grid (1fr / auto / 1fr): динамический остров занимает
+ * СВОЙ трек по центру, а не абсолютно спозиционирован поверх остального —
+ * поэтому он физически не может наехать на время слева или иконки справа,
+ * при любой ширине мокапа.
  */
 function StatusBar() {
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-11 items-center justify-between px-6">
-      <span className="text-[15px] font-semibold tracking-tight text-white">
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-30 grid h-11 grid-cols-[1fr_auto_1fr] items-center px-5">
+      <span className="justify-self-start text-[15px] font-semibold tracking-tight text-white">
         9:41
       </span>
 
-      {/* Dynamic Island */}
-      <div className="absolute left-1/2 top-[9px] h-[26px] w-[94px] -translate-x-1/2 rounded-full bg-black" />
+      {/* Dynamic Island — занимает собственную колонку грида */}
+      <div className="h-[24px] w-[86px] justify-self-center rounded-full bg-black" />
 
-      <div className="flex items-center gap-[5px]">
+      <div className="flex items-center justify-self-end gap-1">
         <SignalIcon />
-        <Wifi size={15} strokeWidth={2.4} className="text-white" />
+        <Wifi size={14} strokeWidth={2.4} className="text-white" />
         <BatteryIcon />
       </div>
     </div>
@@ -193,7 +211,7 @@ function StatusBar() {
 
 function SignalIcon() {
   return (
-    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden>
+    <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden>
       <rect x="0" y="6" width="3" height="5" rx="0.8" fill="white" />
       <rect x="4.5" y="4" width="3" height="7" rx="0.8" fill="white" />
       <rect x="9" y="2" width="3" height="9" rx="0.8" fill="white" />
@@ -204,19 +222,19 @@ function SignalIcon() {
 
 function BatteryIcon() {
   return (
-    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden>
+    <svg width="24" height="12" viewBox="0 0 24 12" fill="none" aria-hidden>
       <rect
         x="0.5"
         y="0.5"
-        width="20"
+        width="19.5"
         height="11"
         rx="3.2"
         stroke="white"
         strokeOpacity="0.4"
       />
-      <rect x="2" y="2" width="15" height="8" rx="1.8" fill="white" />
+      <rect x="2" y="2" width="14.5" height="8" rx="1.8" fill="white" />
       <rect
-        x="21.5"
+        x="21"
         y="4"
         width="1.6"
         height="4"
@@ -248,13 +266,19 @@ function AccountName({
   return <>{username || "аккаунт"}</>;
 }
 
-/** Круглый аватар-заглушка (первая буква username) со skeleton-состоянием. */
+/**
+ * Аватар аккаунта: реальное фото, если есть `avatarUrl`, иначе буквенная
+ * заглушка на акцентном фоне — и то и другое со skeleton-состоянием на
+ * время загрузки. См. комментарий к `avatarUrl` в PhonePreviewProps.
+ */
 function AccountAvatar({
   letter,
+  avatarUrl,
   loading,
   className,
 }: {
   letter: string;
+  avatarUrl?: string | null;
   loading?: boolean;
   className: string;
 }) {
@@ -263,9 +287,19 @@ function AccountAvatar({
       <div className={`${className} animate-pulse rounded-full bg-white/10`} />
     );
   }
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt=""
+        className={`${className} shrink-0 rounded-full object-cover`}
+      />
+    );
+  }
   return (
     <div
-      className={`${className} flex items-center justify-center rounded-full bg-[#4F7CFF] font-semibold text-white`}
+      className={`${className} flex shrink-0 items-center justify-center rounded-full bg-[#4F7CFF] font-semibold text-white`}
     >
       {letter}
     </div>
@@ -276,6 +310,7 @@ function PostScreen({
   username,
   usernameLoading,
   avatarLetter,
+  avatarUrl,
   post,
   isAnyPost,
   showBottomNav,
@@ -283,6 +318,7 @@ function PostScreen({
   username: string;
   usernameLoading?: boolean;
   avatarLetter: string;
+  avatarUrl?: string | null;
   post: PreviewPost;
   isAnyPost: boolean;
   showBottomNav: boolean;
@@ -309,6 +345,7 @@ function PostScreen({
       <div className="flex items-center gap-2 px-4 py-2">
         <AccountAvatar
           letter={avatarLetter}
+          avatarUrl={avatarUrl}
           loading={usernameLoading}
           className="h-7 w-7 text-[11px]"
         />
@@ -322,12 +359,18 @@ function PostScreen({
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : isAnyPost ? (
+          <div className="px-6 text-center">
+            <ImageIcon className="mx-auto mb-2 text-white/20" size={30} />
+            <p className="text-sm italic text-white/50">Любой пост</p>
+            <p className="mt-1 text-xs text-white/30">
+              сработает на любой новый комментарий
+            </p>
+          </div>
         ) : (
           <div className="px-6 text-center">
             <ImageIcon className="mx-auto mb-2 text-white/20" size={30} />
-            <p className="text-xs text-white/40">
-              {isAnyPost ? "Сработает на любой пост" : "Выберите пост слева"}
-            </p>
+            <p className="text-xs text-white/40">Выберите пост слева</p>
           </div>
         )}
       </div>
@@ -357,6 +400,7 @@ function CommentsSheet({
   username,
   usernameLoading,
   avatarLetter,
+  avatarUrl,
   showReply,
   replyText,
 }: {
@@ -364,6 +408,7 @@ function CommentsSheet({
   username: string;
   usernameLoading?: boolean;
   avatarLetter: string;
+  avatarUrl?: string | null;
   showReply: boolean;
   replyText: string;
 }) {
@@ -401,6 +446,8 @@ function CommentsSheet({
             <p className="mt-0.5 text-white/80">{commentText}</p>
             <p className="mt-1 text-white/30">Ответить</p>
 
+            {/* ответ бота — вложенный reply, отступ + бордер слева, как в
+                настоящем Instagram */}
             <AnimatePresence>
               {replyPhase !== "idle" && (
                 <motion.div
@@ -413,6 +460,7 @@ function CommentsSheet({
                 >
                   <AccountAvatar
                     letter={avatarLetter}
+                    avatarUrl={avatarUrl}
                     loading={usernameLoading}
                     className="h-5 w-5 text-[9px]"
                   />
@@ -459,11 +507,18 @@ function CommentsSheet({
 }
 
 type DMMessage = { text: string; button: string | null };
+/** Один элемент отрисованной ленты DM: сообщение бота или синтетический
+ * "клик по кнопке" от лица пользователя — чисто визуальная иллюстрация,
+ * не связана с реальной логикой проверки подписки. */
+type DMTimelineItem =
+  | { kind: "bot"; text: string; button: string | null }
+  | { kind: "user"; text: string };
 
 function DMScreen({
   username,
   usernameLoading,
   avatarLetter,
+  avatarUrl,
   dmText,
   requireFollowCheck,
   buttonTextInitial,
@@ -474,6 +529,7 @@ function DMScreen({
   username: string;
   usernameLoading?: boolean;
   avatarLetter: string;
+  avatarUrl?: string | null;
   dmText: string;
   requireFollowCheck: boolean;
   buttonTextInitial: string;
@@ -489,14 +545,25 @@ function DMScreen({
       ]
     : [{ text: dmText, button: null }];
 
-  const visibleMessages = messages.filter((m) => m.text.trim());
+  // Между сообщениями бота, у которых есть кнопка, вставляем "ответ
+  // пользователя" — имитацию тапа по этой кнопке — чтобы превью читалось
+  // как настоящий диалог, а не список карточек.
+  const timeline: DMTimelineItem[] = [];
+  for (const m of messages) {
+    if (!m.text.trim()) continue;
+    timeline.push({ kind: "bot", text: m.text, button: m.button });
+    if (m.button && m.button.trim()) {
+      timeline.push({ kind: "user", text: m.button.trim() });
+    }
+  }
 
   return (
-    <div className="flex h-full flex-col pt-11 text-white">
-      <div className="flex items-center gap-3 border-b border-[#141B24] px-4 py-2.5">
+    <div className="flex h-full flex-col bg-black pt-11 text-white">
+      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-2.5">
         <ChevronLeft size={18} className="text-white/70" />
         <AccountAvatar
           letter={avatarLetter}
+          avatarUrl={avatarUrl}
           loading={usernameLoading}
           className="h-8 w-8 text-xs"
         />
@@ -508,32 +575,45 @@ function DMScreen({
       </div>
 
       <div className="flex flex-1 flex-col justify-end gap-3 overflow-y-auto px-4 py-4">
-        {visibleMessages.length > 0 ? (
-          visibleMessages.map((m, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.45, duration: 0.3, ease: "easeOut" }}
-              className="flex max-w-[85%] flex-col items-start gap-1.5"
-            >
-              <div className="flex items-end gap-2">
-                <AccountAvatar
-                  letter={avatarLetter}
-                  loading={usernameLoading}
-                  className="h-6 w-6 text-[10px]"
-                />
-                <div className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-[#232D3A] px-3.5 py-2.5 text-sm leading-relaxed text-white/90">
-                  {m.text}
+        {timeline.length > 0 ? (
+          timeline.map((item, i) =>
+            item.kind === "bot" ? (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.4, duration: 0.3, ease: "easeOut" }}
+                className="flex max-w-[85%] flex-col items-start gap-1.5"
+              >
+                <div className="flex items-end gap-2">
+                  <AccountAvatar
+                    letter={avatarLetter}
+                    avatarUrl={avatarUrl}
+                    loading={usernameLoading}
+                    className="h-6 w-6 text-[10px]"
+                  />
+                  <div className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-neutral-800 px-3.5 py-2.5 text-sm leading-relaxed text-white/90">
+                    {item.text}
+                  </div>
                 </div>
-              </div>
-              {m.button && m.button.trim() && (
-                <div className="ml-8 rounded-full border border-[#4F7CFF]/40 bg-[#4F7CFF]/10 px-3.5 py-1.5 text-xs font-medium text-[#4F7CFF]">
-                  {m.button}
-                </div>
-              )}
-            </motion.div>
-          ))
+                {item.button && (
+                  <div className="ml-8 rounded-full border border-[#4F7CFF]/40 bg-[#4F7CFF]/10 px-3.5 py-1.5 text-xs font-medium text-[#4F7CFF]">
+                    {item.button}
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.4, duration: 0.3, ease: "easeOut" }}
+                className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-[#4F7CFF] px-3.5 py-2.5 text-sm leading-relaxed text-white"
+              >
+                {item.text}
+              </motion.div>
+            ),
+          )
         ) : (
           <p className="text-center text-xs text-white/30">
             Введите текст сообщения слева
@@ -541,12 +621,16 @@ function DMScreen({
         )}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-[#141B24] px-3 py-3">
-        <Camera size={18} className="text-[#4F7CFF]" />
-        <div className="flex-1 rounded-full border border-[#232D3A] bg-[#141B24] px-3 py-1.5 text-xs text-white/30">
+      {/* нижняя панель ввода — статичный декор, не интерактивна */}
+      <div className="flex items-center gap-2 border-t border-white/10 px-3 py-3">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4F7CFF]">
+          <Camera size={14} className="text-white" />
+        </div>
+        <div className="flex-1 rounded-full border border-white/10 bg-neutral-900 px-3 py-1.5 text-xs text-white/30">
           Сообщение…
         </div>
         <ImageIcon size={18} className="text-white/40" />
+        <Smile size={18} className="text-white/40" />
         <Plus size={18} className="text-white/40" />
       </div>
     </div>

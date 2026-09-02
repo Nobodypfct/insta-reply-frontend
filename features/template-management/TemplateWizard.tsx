@@ -19,6 +19,7 @@ type TemplateWizardProps = {
   igAccountId: string;
   username: string;
   usernameLoading?: boolean;
+  avatarUrl?: string | null;
   media: IgMedia[];
   editingTemplate: Template | null;
   onClose: () => void;
@@ -29,6 +30,7 @@ export function TemplateWizard({
   igAccountId,
   username,
   usernameLoading = false,
+  avatarUrl = null,
   media,
   editingTemplate,
   onClose,
@@ -511,6 +513,7 @@ export function TemplateWizard({
             step={step === 0 ? 0 : step === 3 ? 2 : 1}
             username={username}
             usernameLoading={usernameLoading}
+            avatarUrl={avatarUrl}
             post={
               selectedPost
                 ? {
