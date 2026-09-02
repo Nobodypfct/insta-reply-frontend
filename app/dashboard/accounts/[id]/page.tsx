@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
+import { createClient } from "@/lib/supabase";
 import { getTemplates, deleteTemplate, toggleTemplateActive } from "@/entities/template/api";
 import type { Template } from "@/entities/template/types";
-import { getMedia } from "@/entities/ig-account/api";
-import type { IgMedia } from "@/entities/ig-account/types";
+import { getAccounts, getMedia } from "@/entities/ig-account/api";
+import type { IgAccount, IgMedia } from "@/entities/ig-account/types";
 import { TemplateWizard } from "@/features/template-management/TemplateWizard";
 
 export default function TemplatesPage() {
@@ -16,18 +17,33 @@ export default function TemplatesPage() {
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [media, setMedia] = useState<IgMedia[]>([]);
+  const [account, setAccount] = useState<IgAccount | null>(null);
+  const [accountLoading, setAccountLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
 
   async function loadData() {
     setLoading(true);
-    const [tplJson, mediaJson] = await Promise.all([
+    setAccountLoading(true);
+
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+
+    const [tplJson, mediaJson, accountsJson] = await Promise.all([
       getTemplates(igAccountId),
       getMedia(igAccountId),
+      userData.user
+        ? getAccounts(userData.user.id)
+        : Promise.resolve({ accounts: [] as IgAccount[] }),
     ]);
+
     setTemplates(tplJson.templates || []);
     setMedia(mediaJson.media || []);
+    setAccount(
+      accountsJson.accounts?.find((a) => a.id === igAccountId) ?? null,
+    );
+    setAccountLoading(false);
     setLoading(false);
   }
 
@@ -194,7 +210,8 @@ export default function TemplatesPage() {
       {wizardOpen && (
         <TemplateWizard
           igAccountId={igAccountId}
-          username=""
+          username={account?.username ?? ""}
+          usernameLoading={accountLoading}
           media={media}
           editingTemplate={editingTemplate}
           onClose={() => setWizardOpen(false)}

@@ -19,6 +19,7 @@ import {
   SquarePlus,
   Film,
   CircleUserRound,
+  Wifi,
 } from "lucide-react";
 
 export type PreviewStep = 0 | 1 | 2;
@@ -31,6 +32,7 @@ type PreviewPost = {
 type PhonePreviewProps = {
   step: PreviewStep;
   username: string;
+  usernameLoading?: boolean;
   post: PreviewPost;
   isAnyPost: boolean;
   keyword: string;
@@ -50,6 +52,7 @@ const REACTIONS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "�
 export function PhonePreview({
   step,
   username,
+  usernameLoading = false,
   post,
   isAnyPost,
   keyword,
@@ -75,14 +78,8 @@ export function PhonePreview({
       <p className="mb-6 text-sm text-[#7C8A9C]">Предпросмотр</p>
 
       <div className="relative h-[580px] w-[280px] overflow-hidden rounded-[42px] border-[6px] border-[#1B2430] bg-black">
-        {/* статус-бар */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex h-11 items-center justify-between px-6 text-[11px] font-medium text-white">
-          <span>15:44</span>
-          <div className="flex items-center gap-1 opacity-70">
-            <span className="h-2 w-2 rounded-full bg-white" />
-            <span className="h-2 w-4 rounded-sm border border-white" />
-          </div>
-        </div>
+        {/* статус-бар — статичный элемент рамки, не часть анимируемого контента */}
+        <StatusBar />
 
         <div className="absolute inset-0 overflow-hidden bg-[#0B0F14]">
           <AnimatePresence initial={false}>
@@ -97,6 +94,7 @@ export function PhonePreview({
               >
                 <PostScreen
                   username={username}
+                  usernameLoading={usernameLoading}
                   avatarLetter={avatarLetter}
                   post={post}
                   isAnyPost={isAnyPost}
@@ -115,6 +113,7 @@ export function PhonePreview({
                       <CommentsSheet
                         commentText={commentText}
                         username={username}
+                        usernameLoading={usernameLoading}
                         avatarLetter={avatarLetter}
                         showReply={showReply}
                         replyText={replyText}
@@ -134,6 +133,7 @@ export function PhonePreview({
               >
                 <DMScreen
                   username={username}
+                  usernameLoading={usernameLoading}
                   avatarLetter={avatarLetter}
                   dmText={dmText}
                   requireFollowCheck={requireFollowCheck}
@@ -166,14 +166,122 @@ export function PhonePreview({
   );
 }
 
+/**
+ * Статус-бар iOS — статичный элемент рамки телефона, живёт вне
+ * анимируемого контента, поэтому не "прыгает" при смене шагов визарда.
+ * Время намеренно захардкожено на "9:41" — стандарт индустрии для
+ * мокапов (так делает и сама Apple в своих маркетинговых материалах).
+ */
+function StatusBar() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-11 items-center justify-between px-6">
+      <span className="text-[15px] font-semibold tracking-tight text-white">
+        9:41
+      </span>
+
+      {/* Dynamic Island */}
+      <div className="absolute left-1/2 top-[9px] h-[26px] w-[94px] -translate-x-1/2 rounded-full bg-black" />
+
+      <div className="flex items-center gap-[5px]">
+        <SignalIcon />
+        <Wifi size={15} strokeWidth={2.4} className="text-white" />
+        <BatteryIcon />
+      </div>
+    </div>
+  );
+}
+
+function SignalIcon() {
+  return (
+    <svg width="17" height="11" viewBox="0 0 17 11" fill="none" aria-hidden>
+      <rect x="0" y="6" width="3" height="5" rx="0.8" fill="white" />
+      <rect x="4.5" y="4" width="3" height="7" rx="0.8" fill="white" />
+      <rect x="9" y="2" width="3" height="9" rx="0.8" fill="white" />
+      <rect x="13.5" y="0" width="3" height="11" rx="0.8" fill="white" />
+    </svg>
+  );
+}
+
+function BatteryIcon() {
+  return (
+    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden>
+      <rect
+        x="0.5"
+        y="0.5"
+        width="20"
+        height="11"
+        rx="3.2"
+        stroke="white"
+        strokeOpacity="0.4"
+      />
+      <rect x="2" y="2" width="15" height="8" rx="1.8" fill="white" />
+      <rect
+        x="21.5"
+        y="4"
+        width="1.6"
+        height="4"
+        rx="0.8"
+        fill="white"
+        fillOpacity="0.4"
+      />
+    </svg>
+  );
+}
+
+/** Текст имени аккаунта со skeleton-состоянием на время загрузки. */
+function AccountName({
+  username,
+  loading,
+  skeletonWidth = "w-16",
+}: {
+  username: string;
+  loading?: boolean;
+  skeletonWidth?: string;
+}) {
+  if (loading) {
+    return (
+      <span
+        className={`inline-block h-[1em] ${skeletonWidth} animate-pulse rounded bg-white/15 align-middle`}
+      />
+    );
+  }
+  return <>{username || "аккаунт"}</>;
+}
+
+/** Круглый аватар-заглушка (первая буква username) со skeleton-состоянием. */
+function AccountAvatar({
+  letter,
+  loading,
+  className,
+}: {
+  letter: string;
+  loading?: boolean;
+  className: string;
+}) {
+  if (loading) {
+    return (
+      <div className={`${className} animate-pulse rounded-full bg-white/10`} />
+    );
+  }
+  return (
+    <div
+      className={`${className} flex items-center justify-center rounded-full bg-[#4F7CFF] font-semibold text-white`}
+    >
+      {letter}
+    </div>
+  );
+}
+
 function PostScreen({
   username,
+  usernameLoading,
   avatarLetter,
   post,
   isAnyPost,
   showBottomNav,
 }: {
   username: string;
+  usernameLoading?: boolean;
   avatarLetter: string;
   post: PreviewPost;
   isAnyPost: boolean;
@@ -187,7 +295,11 @@ function PostScreen({
         <ChevronLeft size={18} className="text-white/70" />
         <div className="flex-1 text-center">
           <p className="text-[10px] uppercase tracking-wide text-white/40">
-            {username || "аккаунт"}
+            <AccountName
+              username={username}
+              loading={usernameLoading}
+              skeletonWidth="w-14"
+            />
           </p>
           <p className="text-sm font-semibold">Публикации</p>
         </div>
@@ -195,10 +307,14 @@ function PostScreen({
       </div>
 
       <div className="flex items-center gap-2 px-4 py-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4F7CFF] text-[11px] font-semibold">
-          {avatarLetter}
-        </div>
-        <span className="text-sm font-medium">{username || "аккаунт"}</span>
+        <AccountAvatar
+          letter={avatarLetter}
+          loading={usernameLoading}
+          className="h-7 w-7 text-[11px]"
+        />
+        <span className="text-sm font-medium">
+          <AccountName username={username} loading={usernameLoading} />
+        </span>
         <MoreHorizontal size={16} className="ml-auto text-white/40" />
       </div>
 
@@ -239,12 +355,14 @@ function PostScreen({
 function CommentsSheet({
   commentText,
   username,
+  usernameLoading,
   avatarLetter,
   showReply,
   replyText,
 }: {
   commentText: string;
   username: string;
+  usernameLoading?: boolean;
   avatarLetter: string;
   showReply: boolean;
   replyText: string;
@@ -293,13 +411,19 @@ function CommentsSheet({
                   transition={{ duration: 0.25, ease: "easeOut" }}
                   className="mt-3 flex gap-2 border-l border-[#232D3A] pl-3"
                 >
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4F7CFF] text-[9px] font-semibold">
-                    {avatarLetter}
-                  </div>
+                  <AccountAvatar
+                    letter={avatarLetter}
+                    loading={usernameLoading}
+                    className="h-5 w-5 text-[9px]"
+                  />
                   <div className="flex-1">
                     <p className="text-white/90">
                       <span className="font-medium">
-                        {username || "аккаунт"}
+                        <AccountName
+                          username={username}
+                          loading={usernameLoading}
+                          skeletonWidth="w-12"
+                        />
                       </span>{" "}
                       <span className="text-white/40">сейчас</span>
                     </p>
@@ -338,6 +462,7 @@ type DMMessage = { text: string; button: string | null };
 
 function DMScreen({
   username,
+  usernameLoading,
   avatarLetter,
   dmText,
   requireFollowCheck,
@@ -347,6 +472,7 @@ function DMScreen({
   messageAfterFollow,
 }: {
   username: string;
+  usernameLoading?: boolean;
   avatarLetter: string;
   dmText: string;
   requireFollowCheck: boolean;
@@ -369,11 +495,13 @@ function DMScreen({
     <div className="flex h-full flex-col pt-11 text-white">
       <div className="flex items-center gap-3 border-b border-[#141B24] px-4 py-2.5">
         <ChevronLeft size={18} className="text-white/70" />
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4F7CFF] text-xs font-semibold">
-          {avatarLetter}
-        </div>
+        <AccountAvatar
+          letter={avatarLetter}
+          loading={usernameLoading}
+          className="h-8 w-8 text-xs"
+        />
         <span className="flex-1 text-sm font-medium">
-          {username || "аккаунт"}
+          <AccountName username={username} loading={usernameLoading} />
         </span>
         <Phone size={16} className="text-white/50" />
         <Video size={18} className="text-white/50" />
@@ -390,9 +518,11 @@ function DMScreen({
               className="flex max-w-[85%] flex-col items-start gap-1.5"
             >
               <div className="flex items-end gap-2">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4F7CFF] text-[10px] font-semibold">
-                  {avatarLetter}
-                </div>
+                <AccountAvatar
+                  letter={avatarLetter}
+                  loading={usernameLoading}
+                  className="h-6 w-6 text-[10px]"
+                />
                 <div className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-[#232D3A] px-3.5 py-2.5 text-sm leading-relaxed text-white/90">
                   {m.text}
                 </div>

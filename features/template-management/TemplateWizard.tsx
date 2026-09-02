@@ -18,6 +18,7 @@ type WizardStep = 0 | 1 | 2 | 3;
 type TemplateWizardProps = {
   igAccountId: string;
   username: string;
+  usernameLoading?: boolean;
   media: IgMedia[];
   editingTemplate: Template | null;
   onClose: () => void;
@@ -27,6 +28,7 @@ type TemplateWizardProps = {
 export function TemplateWizard({
   igAccountId,
   username,
+  usernameLoading = false,
   media,
   editingTemplate,
   onClose,
@@ -508,6 +510,7 @@ export function TemplateWizard({
           <PhonePreview
             step={step === 0 ? 0 : step === 3 ? 2 : 1}
             username={username}
+            usernameLoading={usernameLoading}
             post={
               selectedPost
                 ? {
