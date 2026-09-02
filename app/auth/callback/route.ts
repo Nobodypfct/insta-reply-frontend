@@ -30,7 +30,12 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      // если пришли не по ссылке восстановления пароля - это подтверждение
+      // регистрации, добавим флаг для уведомления на дашборде
+      const isPasswordReset = next.includes("reset-password");
+      const separator = next.includes("?") ? "&" : "?";
+      const finalUrl = isPasswordReset ? next : `${next}${separator}verified=1`;
+      return NextResponse.redirect(`${origin}${finalUrl}`);
     }
   }
 

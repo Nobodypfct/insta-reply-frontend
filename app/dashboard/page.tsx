@@ -27,6 +27,7 @@ function DashboardContent() {
 
   const connectedUsername = searchParams.get("connected");
   const connectError = searchParams.get("connect_error");
+  const emailVerified = searchParams.get("verified") === "1";
 
   useEffect(() => {
     async function init() {
@@ -82,6 +83,11 @@ function DashboardContent() {
           </button>
         </div>
 
+        {emailVerified && (
+          <div className="mb-6 rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 px-4 py-3 text-sm">
+            Email подтверждён, добро пожаловать! 🎉
+          </div>
+        )}
         {connectedUsername && (
           <div className="mb-6 rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 px-4 py-3 text-sm">
             Аккаунт @{connectedUsername} успешно подключён.

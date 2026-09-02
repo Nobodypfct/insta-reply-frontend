@@ -46,7 +46,7 @@ export default function LoginPage() {
       }
       router.push("/dashboard");
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -58,6 +58,17 @@ export default function LoginPage() {
         setError(error.message);
         return;
       }
+
+      // Supabase не даёт прямой ошибки "уже зарегистрирован" (по соображениям
+      // безопасности), но если identities пустой - значит юзер с таким email
+      // уже существует и подтверждён
+      if (data.user && data.user.identities?.length === 0) {
+        setError(
+          "Этот email уже зарегистрирован. Попробуйте войти или восстановить пароль.",
+        );
+        return;
+      }
+
       setSignupDone(true);
     }
   }
@@ -172,12 +183,12 @@ export default function LoginPage() {
                   >
                     Продолжить с Google
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => handleOAuth("facebook")}
                     className="w-full rounded-lg border border-[#232D3A] bg-[#141B24] hover:bg-[#1B2430] transition-colors text-sm py-2.5 flex items-center justify-center gap-2"
                   >
                     Продолжить с Facebook
-                  </button>
+                  </button> */}
                 </div>
               </>
             )}
