@@ -15,6 +15,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [signupDone, setSignupDone] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +26,7 @@ export default function LoginPage() {
 
     if (mode === "forgot") {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
       });
       setLoading(false);
       if (error) {
@@ -41,6 +44,11 @@ export default function LoginPage() {
       });
       setLoading(false);
       if (error) {
+        if (error.code === "email_not_confirmed") {
+          setUnconfirmedEmail(email);
+          setError(null);
+          return;
+        }
         setError(error.message);
         return;
       }
@@ -50,7 +58,7 @@ export default function LoginPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
         },
       });
       setLoading(false);
@@ -71,6 +79,18 @@ export default function LoginPage() {
 
       setSignupDone(true);
     }
+  }
+
+  async function handleResendConfirmation() {
+    if (!unconfirmedEmail) return;
+    setResendLoading(true);
+    await supabase.auth.resend({
+      email: unconfirmedEmail,
+      type: "signup",
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+    });
+    setResendLoading(false);
+    setResendDone(true);
   }
 
   async function handleOAuth(provider: "google" | "facebook") {
@@ -103,6 +123,36 @@ export default function LoginPage() {
           <div className="rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 p-5 text-sm leading-relaxed">
             Если аккаунт с таким email существует, мы отправили на него ссылку
             для сброса пароля.
+          </div>
+        ) : unconfirmedEmail ? (
+          <div className="rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/10 p-5 text-sm leading-relaxed space-y-3">
+            <p>
+              Email <strong>{unconfirmedEmail}</strong> ещё не подтверждён.
+              Проверьте почту (и папку «Спам») — там должна быть ссылка для
+              подтверждения.
+            </p>
+            {resendDone ? (
+              <p className="text-[#4ADE80]">Письмо отправлено повторно ✓</p>
+            ) : (
+              <button
+                onClick={handleResendConfirmation}
+                disabled={resendLoading}
+                className="text-sm text-[#4F7CFF] hover:underline disabled:opacity-50"
+              >
+                {resendLoading ? "Отправляем…" : "Отправить письмо ещё раз"}
+              </button>
+            )}
+            <div>
+              <button
+                onClick={() => {
+                  setUnconfirmedEmail(null);
+                  setResendDone(false);
+                }}
+                className="text-xs text-[#7C8A9C] hover:text-[#E7ECF2] transition-colors"
+              >
+                ← Назад
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -183,19 +233,19 @@ export default function LoginPage() {
                   >
                     Продолжить с Google
                   </button>
-                  {/* <button
+                  <button
                     onClick={() => handleOAuth("facebook")}
                     className="w-full rounded-lg border border-[#232D3A] bg-[#141B24] hover:bg-[#1B2430] transition-colors text-sm py-2.5 flex items-center justify-center gap-2"
                   >
                     Продолжить с Facebook
-                  </button> */}
+                  </button>
                 </div>
               </>
             )}
           </>
         )}
 
-        {!signupDone && !resetSent && (
+        {!signupDone && !resetSent && !unconfirmedEmail && (
           <p className="text-sm text-[#7C8A9C] text-center mt-6">
             {mode === "forgot" ? (
               <button
