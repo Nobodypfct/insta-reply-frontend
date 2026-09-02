@@ -5,3 +5,11 @@ export type IgAccount = {
   webhook_enabled: boolean;
   created_at: string;
 };
+
+export type IgMedia = {
+  id: string;
+  caption?: string;
+  thumbnail_url?: string;
+  media_url?: string;
+  permalink: string;
+};
