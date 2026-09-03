@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation";
 import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getAccounts } from "@/entities/ig-account/api";
-import { getTemplates } from "@/entities/template/api";
 import type { IgAccount } from "@/entities/ig-account/types";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { Link } from "@astryxdesign/core/Link";
-import { Card } from "@astryxdesign/core/Card";
 import { Badge } from "@astryxdesign/core/Badge";
 import { ClickableCard } from "@astryxdesign/core/ClickableCard";
 
@@ -47,7 +45,6 @@ export default function DashboardOverviewPage() {
 
   const [displayName, setDisplayName] = useState("");
   const [accounts, setAccounts] = useState<IgAccount[]>([]);
-  const [hasAnyTemplate, setHasAnyTemplate] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,17 +62,7 @@ export default function DashboardOverviewPage() {
       );
 
       const accountsJson = await getAccounts(data.user.id);
-      const loadedAccounts = accountsJson.accounts || [];
-      setAccounts(loadedAccounts);
-
-      if (loadedAccounts.length > 0) {
-        const templateLists = await Promise.all(
-          loadedAccounts.map((acc) => getTemplates(acc.id)),
-        );
-        setHasAnyTemplate(
-          templateLists.some((t) => (t.templates || []).length > 0),
-        );
-      }
+      setAccounts(accountsJson.accounts || []);
 
       setLoading(false);
     }
@@ -105,58 +92,62 @@ export default function DashboardOverviewPage() {
         <Link href="/dashboard/accounts">Смотреть все</Link>
       </Text>
 
-      {(accounts.length === 0 || !hasAnyTemplate) && (
-        <div className="mt-8">
-          <Heading level={3} className="mb-4 text-xl font-semibold">
-            Начать здесь
-          </Heading>
+      <div className="mt-8">
+        <Heading level={3} className="mb-4 text-xl font-semibold">
+          Начать здесь
+        </Heading>
 
-          {/*
-            Единственный существующий флоу создания шаблона — TemplateWizard,
-            открываемый со страницы конкретного аккаунта. Если аккаунт ровно
-            один — ведём прямиком туда с ?newTemplate=1 (страница сама
-            откроет визард, см. dashboard/accounts/[id]/page.tsx). Если
-            аккаунтов 0 или больше одного — ведём на список: нечего/не с кем
-            выбрать однозначно.
-          */}
-          <div className="flex flex-wrap gap-4">
-            {STARTER_CARDS.map((card) => (
-              <ClickableCard
-                key={card.title}
-                href={
-                  accounts.length === 1
-                    ? `/dashboard/accounts/${accounts[0].id}?newTemplate=1`
-                    : "/dashboard/accounts"
-                }
-                label={card.title}
-                padding={4}
-                width={280}
-              >
-                <Text weight="medium" className="mb-4 block">
-                  {card.title}
+        {/*
+          Единственный существующий флоу создания шаблона — TemplateWizard,
+          открываемый со страницы конкретного аккаунта. Если аккаунт ровно
+          один — ведём прямиком туда с ?newTemplate=1 (страница сама
+          откроет визард, см. dashboard/accounts/[id]/page.tsx). Если
+          аккаунтов 0 или больше одного — ведём на список: нечего/не с кем
+          выбрать однозначно.
+
+          Секция теперь показывается ВСЕГДА, а не только пока юзер ещё
+          ничего не настроил (раньше пряталась через
+          `accounts.length === 0 || !hasAnyTemplate` — убрано по прямому
+          запросу: карточки должны быть видны как на референсе,
+          безусловно).
+        */}
+        <div className="flex flex-wrap gap-4">
+          {STARTER_CARDS.map((card) => (
+            <ClickableCard
+              key={card.title}
+              href={
+                accounts.length === 1
+                  ? `/dashboard/accounts/${accounts[0].id}?newTemplate=1`
+                  : "/dashboard/accounts"
+              }
+              label={card.title}
+              padding={4}
+              width={280}
+            >
+              <Text weight="medium" className="mb-4 block">
+                {card.title}
+              </Text>
+              <div className="flex items-center justify-between gap-2">
+                <Text
+                  color="secondary"
+                  type="supporting"
+                  className="flex items-center gap-1.5"
+                >
+                  <Zap size={14} className="shrink-0" />
+                  Быстрая автоматизация
                 </Text>
-                <div className="flex items-center justify-between gap-2">
-                  <Text
-                    color="secondary"
-                    type="supporting"
-                    className="flex items-center gap-1.5"
-                  >
-                    <Zap size={14} className="shrink-0" />
-                    Быстрая автоматизация
-                  </Text>
-                  {card.popular && (
-                    <Badge
-                      variant="orange"
-                      label="ПОПУЛЯРНОЕ"
-                      className="shrink-0"
-                    />
-                  )}
-                </div>
-              </ClickableCard>
-            ))}
-          </div>
+                {card.popular && (
+                  <Badge
+                    variant="orange"
+                    label="ПОПУЛЯРНОЕ"
+                    className="shrink-0"
+                  />
+                )}
+              </div>
+            </ClickableCard>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
