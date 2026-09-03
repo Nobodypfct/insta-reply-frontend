@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getAccounts } from "@/entities/ig-account/api";
 import { getTemplates } from "@/entities/template/api";
@@ -11,7 +11,8 @@ import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { Link } from "@astryxdesign/core/Link";
 import { Card } from "@astryxdesign/core/Card";
-import { Button } from "@astryxdesign/core/Button";
+import { Badge } from "@astryxdesign/core/Badge";
+import { ClickableCard } from "@astryxdesign/core/ClickableCard";
 
 /** "1 подключённый аккаунт" / "2 подключённых аккаунта" / "5 подключённых аккаунтов" */
 function accountsCountLabel(n: number): string {
@@ -27,11 +28,23 @@ function accountsCountLabel(n: number): string {
   return `${n} ${adjective} ${noun}`;
 }
 
+type StarterCard = {
+  title: string;
+  popular?: boolean;
+};
+
+// Пока ведут все три на список аккаунтов (шаблон создаётся в контексте
+// конкретного аккаунта) — реальные отдельные сценарии появятся позже.
+const STARTER_CARDS: StarterCard[] = [
+  { title: "Автоответ на комментарии", popular: true },
+  { title: "Собирайте лиды через комментарии" },
+  { title: "Отвечайте на все DM" },
+];
+
 export default function DashboardOverviewPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [userId, setUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [accounts, setAccounts] = useState<IgAccount[]>([]);
   const [hasAnyTemplate, setHasAnyTemplate] = useState(false);
@@ -44,7 +57,6 @@ export default function DashboardOverviewPage() {
         router.push("/login");
         return;
       }
-      setUserId(data.user.id);
       setDisplayName(
         data.user.user_metadata?.full_name ||
           data.user.user_metadata?.name ||
@@ -70,26 +82,21 @@ export default function DashboardOverviewPage() {
     init();
   }, []);
 
-  function handleConnect() {
-    if (!userId) return;
-    signIn("instagram", { callbackUrl: "/instagram-connected" });
-  }
-
   if (loading) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-10">
+      <div className="mx-auto max-w-5xl px-8 py-8">
         <Text color="secondary">Загрузка…</Text>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <Heading level={1} className="mb-6 text-xl font-medium">
+    <div className="mx-auto max-w-5xl px-8 py-8">
+      <Heading level={1} className="mb-6 text-2xl font-semibold">
         Главная
       </Heading>
 
-      <Heading level={2} className="break-words text-3xl font-bold">
+      <Heading level={2} className="break-words text-5xl font-bold">
         Привет, {displayName}!
       </Heading>
 
@@ -99,36 +106,43 @@ export default function DashboardOverviewPage() {
       </Text>
 
       {(accounts.length === 0 || !hasAnyTemplate) && (
-        <div className="mt-10">
-          <Heading level={3} className="mb-4 text-lg font-medium">
+        <div className="mt-8">
+          <Heading level={3} className="mb-4 text-xl font-semibold">
             Начать здесь
           </Heading>
 
-          {accounts.length === 0 ? (
-            <Card padding={5} maxWidth={420}>
-              <Text weight="medium" className="mb-1 block">
-                Подключите первый Instagram-аккаунт
-              </Text>
-              <Text color="secondary" type="supporting" className="mb-4 block">
-                Чтобы включить автоответ на комментарии и DM.
-              </Text>
-              <Button
-                variant="primary"
-                label="Подключить Instagram"
-                onClick={handleConnect}
-              />
-            </Card>
-          ) : (
-            <Card padding={5} maxWidth={420}>
-              <Text weight="medium" className="mb-1 block">
-                Создайте первый шаблон автоответа
-              </Text>
-              <Text color="secondary" type="supporting" className="mb-4 block">
-                Шаблон настраивается для конкретного подключённого аккаунта.
-              </Text>
-              <Link href="/dashboard/accounts">Перейти к аккаунтам</Link>
-            </Card>
-          )}
+          <div className="flex flex-wrap gap-4">
+            {STARTER_CARDS.map((card) => (
+              <ClickableCard
+                key={card.title}
+                href="/dashboard/accounts"
+                label={card.title}
+                padding={4}
+                width={280}
+              >
+                <Text weight="medium" className="mb-4 block">
+                  {card.title}
+                </Text>
+                <div className="flex items-center justify-between gap-2">
+                  <Text
+                    color="secondary"
+                    type="supporting"
+                    className="flex items-center gap-1.5"
+                  >
+                    <Zap size={14} className="shrink-0" />
+                    Быстрая автоматизация
+                  </Text>
+                  {card.popular && (
+                    <Badge
+                      variant="orange"
+                      label="ПОПУЛЯРНОЕ"
+                      className="shrink-0"
+                    />
+                  )}
+                </div>
+              </ClickableCard>
+            ))}
+          </div>
         </div>
       )}
     </div>

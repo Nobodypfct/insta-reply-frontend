@@ -56,25 +56,31 @@ export default function DashboardLayout({
         <SideNav
           collapsible={{ isCollapsed: true, hasButton: false }}
           header={
-            <div className="flex justify-center py-2">
+            <div className="flex justify-center py-3">
               <Tooltip content={email ?? "Профиль"}>
-                <Avatar name={email ?? undefined} size="sm" />
+                <Avatar name={email ?? undefined} size="lg" />
               </Tooltip>
             </div>
           }
           footerIcons={
-            <div className="flex justify-center py-1">
+            <div className="flex justify-center py-2">
               <Tooltip content="Помощь">
                 <IconButton
                   label="Помощь"
-                  icon={<HelpCircle size={18} />}
+                  icon={<HelpCircle size={22} />}
                   variant="ghost"
+                  size="lg"
                 />
               </Tooltip>
             </div>
           }
           footer={
-            <SideNavItem label="Выйти" icon={LogOut} onClick={handleLogout} />
+            <SideNavItem
+              label="Выйти"
+              icon={LogOut}
+              onClick={handleLogout}
+              size="lg"
+            />
           }
         >
           <SideNavItem
@@ -83,6 +89,7 @@ export default function DashboardLayout({
             href="/dashboard"
             as={NextLink}
             isSelected={isHome}
+            size="lg"
           />
           <SideNavItem
             label="Аккаунты"
@@ -90,6 +97,7 @@ export default function DashboardLayout({
             href="/dashboard/accounts"
             as={NextLink}
             isSelected={isAccountsSection}
+            size="lg"
           />
         </SideNav>
       }
