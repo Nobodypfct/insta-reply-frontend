@@ -104,9 +104,15 @@ function LoginForm() {
   // не актуальна для нашей аудитории. Google по-прежнему использует эту же
   // функцию.
   async function handleOAuth(provider: "google" | "facebook") {
+    // redirectTo ведёт на /auth/callback (обмен PKCE-кода на сессию на
+    // сервере), а НЕ прямиком на next/"/dashboard" — см. комментарий в
+    // app/auth/callback/route.ts, почему это критично после появления
+    // proxy.ts.
+    const callbackUrl = new URL("/auth/callback", window.location.origin);
+    if (next) callbackUrl.searchParams.set("next", next);
     await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}${next ?? "/dashboard"}` },
+      options: { redirectTo: callbackUrl.toString() },
     });
   }
 

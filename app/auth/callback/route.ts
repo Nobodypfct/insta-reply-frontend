@@ -1,13 +1,31 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { sanitizeNextPath } from "@/shared/lib/next-url";
 
-// сюда Supabase редиректит после того как юзер подтвердит email
-// (или сбросит пароль) - обмениваем одноразовый код на реальную сессию
+/**
+ * Сюда Supabase редиректит после OAuth-логина/регистрации (Google,
+ * Facebook) — обмениваем одноразовый PKCE `code` на реальную сессию.
+ * Именно этим (не /auth/confirm — тот для email-ссылок через token_hash,
+ * см. CLAUDE.md) должен быть `redirectTo` у `signInWithOAuth()` в
+ * app/login/page.tsx и app/signup/page.tsx.
+ *
+ * ВАЖНО: обмен должен произойти именно тут, на сервере, а не полагаться
+ * на клиентский Supabase-клиент, который сам подхватит `?code=` из URL —
+ * до фикса именно так и было (`redirectTo` вёл прямо на `/dashboard`), и
+ * это работало только потому, что раньше ничего не перехватывало запрос
+ * раньше браузера. После появления proxy.ts (серверный гейт /dashboard)
+ * это сломалось: proxy.ts видит `/dashboard?code=...` БЕЗ сессии (cookie
+ * ещё не установлена — обмен ещё не произошёл) и отправляет на /login,
+ * теряя один одноразовый code раньше, чем клиентский JS успевает его
+ * обменять. /auth/callback исключён из matcher'а proxy.ts как раз для
+ * того, чтобы обмен успевал произойти здесь и УЖЕ с валидной cookie
+ * долетать до /dashboard.
+ */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = sanitizeNextPath(searchParams.get("next")) ?? "/dashboard";
 
   if (code) {
     const cookieStore = await cookies();
@@ -30,12 +48,7 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // если пришли не по ссылке восстановления пароля - это подтверждение
-      // регистрации, добавим флаг для уведомления на дашборде
-      const isPasswordReset = next.includes("reset-password");
-      const separator = next.includes("?") ? "&" : "?";
-      const finalUrl = isPasswordReset ? next : `${next}${separator}verified=1`;
-      return NextResponse.redirect(`${origin}${finalUrl}`);
+      return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
