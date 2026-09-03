@@ -97,7 +97,11 @@ export default function TemplatesPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
-      <Link href="/dashboard" as={NextLink} className="mb-6 inline-block">
+      <Link
+        href="/dashboard/accounts"
+        as={NextLink}
+        className="mb-6 inline-block"
+      >
         ← Назад к аккаунтам
       </Link>
 

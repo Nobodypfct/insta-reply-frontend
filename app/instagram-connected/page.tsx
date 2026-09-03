@@ -43,7 +43,7 @@ export default function InstagramConnectedPage() {
 
     if (res.ok) {
       const json = await res.json();
-      router.push(`/dashboard?connected=${json.username}`);
+      router.push(`/dashboard/accounts?connected=${json.username}`);
       return;
     }
 
@@ -56,7 +56,7 @@ export default function InstagramConnectedPage() {
       return;
     }
 
-    router.push("/dashboard?connect_error=backend_failed");
+    router.push("/dashboard/accounts?connect_error=backend_failed");
   }
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function InstagramConnectedPage() {
     if (!s?.igAccessToken) {
       setMessage("Не удалось получить данные Instagram. Попробуйте снова.");
       setTimeout(
-        () => router.push("/dashboard?connect_error=no_session"),
+        () => router.push("/dashboard/accounts?connect_error=no_session"),
         1500,
       );
       return;
@@ -99,7 +99,7 @@ export default function InstagramConnectedPage() {
               variant="secondary"
               width="100%"
               label="Отмена"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/dashboard/accounts")}
             />
             <Button
               variant="primary"
