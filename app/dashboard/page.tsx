@@ -3,10 +3,18 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import Link from "next/link";
+import { Users } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getAccounts } from "@/entities/ig-account/api";
 import type { IgAccount } from "@/entities/ig-account/types";
+import { Stack } from "@astryxdesign/core/Stack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "@astryxdesign/core/Banner";
+import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { ClickableCard } from "@astryxdesign/core/ClickableCard";
+import { ActiveStatusBadge } from "@/shared/components/ActiveStatusBadge";
 
 function DashboardContent() {
   const router = useRouter();
@@ -37,103 +45,87 @@ function DashboardContent() {
     init();
   }, []);
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/login");
-  }
-
   function handleConnect() {
     if (!userId) return;
     signIn("instagram", { callbackUrl: "/instagram-connected" });
   }
 
   return (
-    <main className="min-h-screen bg-[#0B0F14] text-[#E7ECF2]">
-      <header className="border-b border-[#1B2430] px-6 py-4 flex items-center justify-between">
-        <span className="text-sm tracking-wide text-[#7C8A9C]">
-          INSTA-REPLY
-        </span>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-[#7C8A9C] hover:text-[#E7ECF2] transition-colors"
-        >
-          Выйти
-        </button>
-      </header>
+    <div className="mx-auto max-w-2xl px-6 py-10">
+      <div className="mb-8 flex items-center justify-between">
+        <Heading level={1} className="text-xl font-medium">
+          Ваши Instagram-аккаунты
+        </Heading>
+        <Button
+          variant="primary"
+          label="+ Подключить Instagram"
+          onClick={handleConnect}
+        />
+      </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-semibold">Ваши Instagram-аккаунты</h1>
-          <button
-            onClick={handleConnect}
-            className="rounded-lg bg-[#4F7CFF] hover:bg-[#3D68EA] transition-colors text-white text-sm font-medium px-4 py-2"
-          >
-            + Подключить Instagram
-          </button>
-        </div>
+      {(emailVerified || connectedUsername || connectError) && (
+        <Stack gap={3} className="mb-6">
+          {emailVerified && (
+            <Banner status="success" title="Email подтверждён, добро пожаловать! 🎉" />
+          )}
+          {connectedUsername && (
+            <Banner
+              status="success"
+              title={`Аккаунт @${connectedUsername} успешно подключён.`}
+            />
+          )}
+          {connectError && (
+            <Banner
+              status="error"
+              title={`Не получилось подключить аккаунт (${connectError})`}
+              description="Попробуйте ещё раз."
+            />
+          )}
+        </Stack>
+      )}
 
-        {emailVerified && (
-          <div className="mb-6 rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 px-4 py-3 text-sm">
-            Email подтверждён, добро пожаловать! 🎉
-          </div>
-        )}
-        {connectedUsername && (
-          <div className="mb-6 rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 px-4 py-3 text-sm">
-            Аккаунт @{connectedUsername} успешно подключён.
-          </div>
-        )}
-        {connectError && (
-          <div className="mb-6 rounded-xl border border-[#F87171]/30 bg-[#F87171]/10 px-4 py-3 text-sm">
-            Не получилось подключить аккаунт ({connectError}). Попробуйте ещё
-            раз.
-          </div>
-        )}
-
-        {loading ? (
-          <p className="text-sm text-[#7C8A9C]">Загрузка…</p>
-        ) : accounts.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#232D3A] px-6 py-14 text-center">
-            <p className="text-sm text-[#7C8A9C] mb-4">
-              Пока нет подключённых аккаунтов. Подключите Instagram, чтобы
-              включить автоответ на комментарии и DM.
-            </p>
-            <button
+      {loading ? (
+        <Text color="secondary">Загрузка…</Text>
+      ) : accounts.length === 0 ? (
+        <EmptyState
+          icon={<Users size={32} />}
+          title="Пока нет подключённых аккаунтов"
+          description="Подключите Instagram, чтобы включить автоответ на комментарии и DM."
+          actions={
+            <Button
+              variant="primary"
+              label="Подключить первый аккаунт"
               onClick={handleConnect}
-              className="rounded-lg bg-[#4F7CFF] hover:bg-[#3D68EA] transition-colors text-white text-sm font-medium px-4 py-2"
+            />
+          }
+        />
+      ) : (
+        <Stack gap={3}>
+          {accounts.map((acc) => (
+            <ClickableCard
+              key={acc.id}
+              href={`/dashboard/accounts/${acc.id}`}
+              label={`Открыть шаблоны @${acc.username}`}
             >
-              Подключить первый аккаунт
-            </button>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {accounts.map((acc) => (
-              <Link
-                key={acc.id}
-                href={`/dashboard/accounts/${acc.id}`}
-                className="rounded-xl border border-[#232D3A] bg-[#141B24] px-5 py-4 flex items-center justify-between hover:border-[#4F7CFF]/50 transition-colors"
-              >
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">@{acc.username}</p>
-                  <p className="text-xs text-[#7C8A9C] mt-0.5">
+                  <Text weight="medium">@{acc.username}</Text>
+                  <Text
+                    color="secondary"
+                    type="supporting"
+                    className="mt-0.5 block"
+                  >
                     Подключён{" "}
                     {new Date(acc.created_at).toLocaleDateString("ru-RU")}
-                  </p>
+                  </Text>
                 </div>
-                <span
-                  className={`text-xs px-2.5 py-1 rounded-full ${
-                    acc.webhook_enabled
-                      ? "bg-[#22C55E]/15 text-[#4ADE80]"
-                      : "bg-[#7C8A9C]/15 text-[#7C8A9C]"
-                  }`}
-                >
-                  {acc.webhook_enabled ? "Включён" : "Выключен"}
-                </span>
-              </Link>
-            ))}
-          </ul>
-        )}
-      </div>
-    </main>
+                <ActiveStatusBadge isActive={acc.webhook_enabled} />
+              </div>
+            </ClickableCard>
+          ))}
+        </Stack>
+      )}
+    </div>
   );
 }
 

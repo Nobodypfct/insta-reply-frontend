@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { AstryxProvider } from "@/components/AstryxProvider";
 
 export const metadata: Metadata = {
   title: "Insta-Reply",
@@ -9,9 +10,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ru" className="h-full antialiased">
+    <html lang="ru" className="h-full antialiased" data-theme="light">
       <body className="min-h-full flex flex-col font-sans">
-        <Providers>{children}</Providers>
+        <AstryxProvider>
+          <Providers>{children}</Providers>
+        </AstryxProvider>
       </body>
     </html>
   );

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Stack } from "@astryxdesign/core/Stack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { Button } from "@astryxdesign/core/Button";
+import { Link } from "@astryxdesign/core/Link";
+import { Divider } from "@astryxdesign/core/Divider";
+import { Banner } from "@astryxdesign/core/Banner";
 import { createClient } from "@/lib/supabase";
 
 export default function SignupPage() {
@@ -52,97 +59,87 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0B0F14] text-[#E7ECF2] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 text-sm tracking-wide text-[#7C8A9C] mb-2">
+    <main className="min-h-screen bg-body px-4 pb-10 pt-20">
+      <div className="mx-auto w-full max-w-[440px]">
+        <Stack gap={1} className="mb-10">
+          <Text
+            type="label"
+            color="secondary"
+            className="text-[11px] tracking-wider"
+          >
             INSTA-REPLY
-          </div>
-          <h1 className="text-2xl font-semibold">Создать аккаунт</h1>
-        </div>
+          </Text>
+          <Heading level={1} className="text-xl font-medium">
+            Создать аккаунт
+          </Heading>
+        </Stack>
 
         {signupDone ? (
-          <div className="rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 p-5 text-sm leading-relaxed">
-            Проверьте почту — мы отправили ссылку для подтверждения аккаунта на{" "}
-            {email}.
-          </div>
+          <Banner
+            status="success"
+            title="Проверьте почту"
+            description={`Мы отправили ссылку для подтверждения аккаунта на ${email}.`}
+          />
         ) : (
-          <>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-[#7C8A9C] mb-1.5">
-                  Email
-                </label>
-                <input
+          <Stack gap={6}>
+            <form onSubmit={handleSubmit}>
+              <Stack gap={5}>
+                <TextInput
+                  label="Email"
                   type="email"
-                  required
+                  size="lg"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg bg-[#141B24] border border-[#232D3A] px-3.5 py-2.5 text-sm outline-none focus:border-[#4F7CFF] focus:ring-1 focus:ring-[#4F7CFF] transition-colors"
+                  onChange={(value) => setEmail(value)}
                   placeholder="you@example.com"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm text-[#7C8A9C] mb-1.5">
-                  Пароль
-                </label>
-                <input
+                <TextInput
+                  label="Пароль"
                   type="password"
-                  required
-                  minLength={6}
+                  size="lg"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg bg-[#141B24] border border-[#232D3A] px-3.5 py-2.5 text-sm outline-none focus:border-[#4F7CFF] focus:ring-1 focus:ring-[#4F7CFF] transition-colors"
+                  onChange={(value) => setPassword(value)}
                   placeholder="не меньше 6 символов"
                 />
-              </div>
 
-              {error && (
-                <p className="text-sm text-[#F87171] leading-relaxed">
-                  {error}
-                </p>
-              )}
+                {error && <Text className="text-error">{error}</Text>}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-lg bg-[#4F7CFF] hover:bg-[#3D68EA] disabled:opacity-50 transition-colors text-white text-sm font-medium py-2.5 mt-2"
-              >
-                {loading ? "Секунду…" : "Создать аккаунт"}
-              </button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  width="100%"
+                  isLoading={loading}
+                  label={loading ? "Секунду…" : "Создать аккаунт"}
+                />
+              </Stack>
             </form>
 
-            <div className="flex items-center gap-3 my-5">
-              <div className="h-px flex-1 bg-[#232D3A]" />
-              <span className="text-xs text-[#7C8A9C]">или</span>
-              <div className="h-px flex-1 bg-[#232D3A]" />
-            </div>
+            <Divider
+              label={<span className="tracking-wide">ИЛИ ЗАРЕГИСТРИРУЙТЕСЬ ЧЕРЕЗ</span>}
+            />
 
-            <div className="space-y-2.5">
-              <button
+            <Stack gap={2}>
+              <Button
+                variant="secondary"
+                width="100%"
+                label="Продолжить с Google"
                 onClick={() => handleOAuth("google")}
-                className="w-full rounded-lg border border-[#232D3A] bg-[#141B24] hover:bg-[#1B2430] transition-colors text-sm py-2.5 flex items-center justify-center gap-2"
-              >
-                Продолжить с Google
-              </button>
-              <button
+                className="border border-border-strong bg-surface hover:bg-body"
+              />
+              <Button
+                variant="secondary"
+                width="100%"
+                label="Продолжить с Facebook"
                 onClick={() => handleOAuth("facebook")}
-                className="w-full rounded-lg border border-[#232D3A] bg-[#141B24] hover:bg-[#1B2430] transition-colors text-sm py-2.5 flex items-center justify-center gap-2"
-              >
-                Продолжить с Facebook
-              </button>
-            </div>
-          </>
+                className="border border-border-strong bg-surface hover:bg-body"
+              />
+            </Stack>
+          </Stack>
         )}
 
         {!signupDone && (
-          <p className="text-sm text-[#7C8A9C] text-center mt-6">
-            Уже есть аккаунт?{" "}
-            <Link href="/login" className="text-[#4F7CFF] hover:underline">
-              Войти
-            </Link>
-          </p>
+          <Text justify="center" color="secondary" className="mt-6">
+            Уже есть аккаунт? <Link href="/login">Войти</Link>
+          </Text>
         )}
       </div>
     </main>

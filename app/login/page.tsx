@@ -100,7 +100,7 @@ export default function LoginPage() {
     // mx-auto), а не flex-центрированием контейнера — для консистентности.
     // По вертикали форма стоит в верхней трети (pt-20), а не строго по
     // центру viewport, как на референсе.
-    <main className="min-h-screen bg-white px-4 pb-10 pt-20">
+    <main className="min-h-screen bg-body px-4 pb-10 pt-20">
       <div className="mx-auto w-full max-w-[440px]">
         <Stack gap={1} className="mb-10">
           <Text
@@ -175,7 +175,6 @@ export default function LoginPage() {
                   width="100%"
                   isLoading={loading}
                   label={loading ? "Секунду…" : "Войти"}
-                  className="bg-[#4F7CFF] hover:bg-[#3D68EA]"
                 />
               </Stack>
             </form>
@@ -204,11 +203,9 @@ export default function LoginPage() {
         )}
 
         {!unconfirmedEmail && (
-          <div className="flex justify-center">
-            <Text justify="center" color="secondary" className="mt-6">
-              Ещё нет аккаунта? <Link href="/signup">Создать</Link>
-            </Text>
-          </div>
+          <Text justify="center" color="secondary" className="mt-6">
+            Ещё нет аккаунта? <Link href="/signup">Создать</Link>
+          </Text>
         )}
       </div>
     </main>

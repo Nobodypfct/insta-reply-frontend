@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Stack } from "@astryxdesign/core/Stack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { Button } from "@astryxdesign/core/Button";
+import { Link } from "@astryxdesign/core/Link";
+import { Banner } from "@astryxdesign/core/Banner";
 import { createClient } from "@/lib/supabase";
 
 export default function ForgotPasswordPage() {
@@ -29,57 +35,55 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0B0F14] text-[#E7ECF2] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 text-sm tracking-wide text-[#7C8A9C] mb-2">
+    <main className="min-h-screen bg-body px-4 pb-10 pt-20">
+      <div className="mx-auto w-full max-w-[440px]">
+        <Stack gap={1} className="mb-10">
+          <Text
+            type="label"
+            color="secondary"
+            className="text-[11px] tracking-wider"
+          >
             INSTA-REPLY
-          </div>
-          <h1 className="text-2xl font-semibold">Восстановление пароля</h1>
-        </div>
+          </Text>
+          <Heading level={1} className="text-xl font-medium">
+            Восстановление пароля
+          </Heading>
+        </Stack>
 
         {resetSent ? (
-          <div className="rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 p-5 text-sm leading-relaxed">
-            Если аккаунт с таким email существует, мы отправили на него ссылку
-            для сброса пароля.
-          </div>
+          <Banner
+            status="success"
+            title="Проверьте почту"
+            description="Если аккаунт с таким email существует, мы отправили на него ссылку для сброса пароля."
+          />
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm text-[#7C8A9C] mb-1.5">
-                Email
-              </label>
-              <input
+          <form onSubmit={handleSubmit}>
+            <Stack gap={5}>
+              <TextInput
+                label="Email"
                 type="email"
-                required
+                size="lg"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg bg-[#141B24] border border-[#232D3A] px-3.5 py-2.5 text-sm outline-none focus:border-[#4F7CFF] focus:ring-1 focus:ring-[#4F7CFF] transition-colors"
+                onChange={(value) => setEmail(value)}
                 placeholder="you@example.com"
               />
-            </div>
 
-            {error && (
-              <p className="text-sm text-[#F87171] leading-relaxed">
-                {error}
-              </p>
-            )}
+              {error && <Text className="text-error">{error}</Text>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-[#4F7CFF] hover:bg-[#3D68EA] disabled:opacity-50 transition-colors text-white text-sm font-medium py-2.5 mt-2"
-            >
-              {loading ? "Секунду…" : "Отправить ссылку для сброса"}
-            </button>
+              <Button
+                type="submit"
+                variant="primary"
+                width="100%"
+                isLoading={loading}
+                label={loading ? "Секунду…" : "Отправить ссылку для сброса"}
+              />
+            </Stack>
           </form>
         )}
 
-        <p className="text-sm text-[#7C8A9C] text-center mt-6">
-          <Link href="/login" className="text-[#4F7CFF] hover:underline">
-            Вернуться ко входу
-          </Link>
-        </p>
+        <Text justify="center" color="secondary" className="mt-6">
+          <Link href="/login">Вернуться ко входу</Link>
+        </Text>
       </div>
     </main>
   );

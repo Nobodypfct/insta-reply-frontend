@@ -1,6 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
+import { Stack } from "@astryxdesign/core/Stack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { Button } from "@astryxdesign/core/Button";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { Link } from "@astryxdesign/core/Link";
+import { Card } from "@astryxdesign/core/Card";
+import { RadioList, RadioListItem } from "@astryxdesign/core/RadioList";
+import { Switch } from "@astryxdesign/core/Switch";
 import { createTemplate, updateTemplate } from "@/entities/template/api";
 import type { Template, TemplateInput } from "@/entities/template/types";
 import type { IgMedia } from "@/entities/ig-account/types";
@@ -185,27 +197,24 @@ export function TemplateWizard({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0B0F14]">
-      <header className="flex items-center justify-between border-b border-[#141B24] px-6 py-4">
-        <button
-          onClick={onClose}
-          className="text-sm text-[#7C8A9C] transition-colors hover:text-[#E7ECF2]"
-        >
-          ← Отмена
-        </button>
-        <p className="text-xs text-[#7C8A9C]">Шаг {step + 1} из 4</p>
+    <div className="fixed inset-0 z-50 flex flex-col bg-surface">
+      <header className="flex items-center justify-between border-b border-border px-6 py-4">
+        <Link onClick={onClose}>← Отмена</Link>
+        <Text color="secondary" type="supporting">
+          Шаг {step + 1} из 4
+        </Text>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-full max-w-[420px] shrink-0 overflow-y-auto px-6 py-8 lg:border-r lg:border-[#141B24] lg:px-8">
+        <div className="w-full max-w-[420px] shrink-0 overflow-y-auto px-6 py-8 lg:border-r lg:border-border lg:px-8">
           {step === 0 && (
             <>
-              <h2 className="mb-1 text-xl font-semibold text-[#E7ECF2]">
+              <Heading level={2} className="mb-1 text-lg font-medium">
                 Когда кто-то комментирует
-              </h2>
-              <p className="mb-6 text-sm text-[#7C8A9C]">
+              </Heading>
+              <Text color="secondary" className="mb-6">
                 Выберите, на какие посты будет реагировать бот.
-              </p>
+              </Text>
 
               <PostPicker
                 media={media}
@@ -222,293 +231,223 @@ export function TemplateWizard({
               />
 
               {stepError && (
-                <p className="mt-4 text-sm text-[#F87171]">{stepError}</p>
+                <Text className="mt-4 text-error">{stepError}</Text>
               )}
 
-              <button
+              <Button
+                width="100%"
+                variant="primary"
+                label="Далее"
                 onClick={goNext}
-                className="mt-6 w-full rounded-lg bg-[#4F7CFF] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#3D68EA]"
-              >
-                Далее
-              </button>
+                className="mt-6"
+              />
             </>
           )}
 
           {step === 1 && (
             <>
-              <button
-                onClick={goBack}
-                className="mb-4 text-xs text-[#7C8A9C] transition-colors hover:text-[#E7ECF2]"
-              >
-                ← Назад
-              </button>
-              <h2 className="mb-1 text-xl font-semibold text-[#E7ECF2]">
+              <Link onClick={goBack}>← Назад</Link>
+              <Heading level={2} className="mb-1 mt-4 text-lg font-medium">
                 И этот комментарий содержит
-              </h2>
-              <p className="mb-6 text-sm text-[#7C8A9C]">
+              </Heading>
+              <Text color="secondary" className="mb-6">
                 Слово-триггер, чтобы бот отвечал только на нужные комментарии.
-              </p>
+              </Text>
 
-              <div className="space-y-3">
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
-                  <input
-                    type="radio"
-                    checked={keywordMode === "specific"}
-                    onChange={() => setKeywordMode("specific")}
-                    className="mt-0.5 accent-[#4F7CFF]"
+              <RadioList
+                label="Слово-триггер"
+                isLabelHidden
+                value={keywordMode}
+                onChange={(v) => setKeywordMode(v as "specific" | "any")}
+              >
+                <RadioListItem
+                  label="определённое слово или слова"
+                  value="specific"
+                />
+                <RadioListItem label="любое слово" value="any" />
+              </RadioList>
+
+              {keywordMode === "specific" && (
+                <div className="mt-3">
+                  <TextInput
+                    label="Слово-триггер"
+                    isLabelHidden
+                    value={keyword}
+                    onChange={(value) => setKeyword(value)}
+                    placeholder="например: цена, стоимость"
+                    description="Через запятую, если вариантов несколько"
                   />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-[#E7ECF2]">
-                      определённое слово или слова
-                    </p>
-                    {keywordMode === "specific" && (
-                      <div className="mt-3">
-                        <input
-                          type="text"
-                          value={keyword}
-                          onChange={(e) => setKeyword(e.target.value)}
-                          placeholder="например: цена, стоимость"
-                          className="w-full rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
-                        />
-                        <p className="mt-1.5 text-xs text-[#7C8A9C]">
-                          Через запятую, если вариантов несколько
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </label>
-
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
-                  <input
-                    type="radio"
-                    checked={keywordMode === "any"}
-                    onChange={() => setKeywordMode("any")}
-                    className="accent-[#4F7CFF]"
-                  />
-                  <p className="text-sm font-medium text-[#E7ECF2]">
-                    любое слово
-                  </p>
-                </label>
-              </div>
-
-              {stepError && (
-                <p className="mt-4 text-sm text-[#F87171]">{stepError}</p>
+                </div>
               )}
 
-              <button
+              {stepError && (
+                <Text className="mt-4 text-error">{stepError}</Text>
+              )}
+
+              <Button
+                width="100%"
+                variant="primary"
+                label="Далее"
                 onClick={goNext}
-                className="mt-6 w-full rounded-lg bg-[#4F7CFF] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#3D68EA]"
-              >
-                Далее
-              </button>
+                className="mt-6"
+              />
             </>
           )}
 
           {step === 2 && (
             <>
-              <button
-                onClick={goBack}
-                className="mb-4 text-xs text-[#7C8A9C] transition-colors hover:text-[#E7ECF2]"
-              >
-                ← Назад
-              </button>
-              <h2 className="mb-1 text-xl font-semibold text-[#E7ECF2]">
+              <Link onClick={goBack}>← Назад</Link>
+              <Heading level={2} className="mb-1 mt-4 text-lg font-medium">
                 Ответ на комментарий
-              </h2>
-              <p className="mb-6 text-sm text-[#7C8A9C]">
+              </Heading>
+              <Text color="secondary" className="mb-6">
                 Если вариантов несколько — бот выберет случайный, чтобы ответы
                 не выглядели одинаково под разными комментариями.
-              </p>
+              </Text>
 
-              <div className="rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
-                <p className="mb-3 text-sm font-medium text-[#E7ECF2]">
+              <Card padding={4}>
+                <Text weight="medium" className="mb-3">
                   варианты ответа
-                </p>
-                <div className="space-y-2">
+                </Text>
+                <Stack gap={2}>
                   {replyTexts.map((text, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={text}
-                        onChange={(e) => updateReplyText(i, e.target.value)}
-                        className="flex-1 rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
-                      />
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <TextInput
+                          label={`Вариант ответа ${i + 1}`}
+                          isLabelHidden
+                          value={text}
+                          onChange={(value) => updateReplyText(i, value)}
+                        />
+                      </div>
                       {replyTexts.length > 1 && (
-                        <button
+                        <IconButton
+                          label="Удалить вариант"
+                          icon={<X size={16} />}
+                          variant="ghost"
                           onClick={() => removeReplyVariant(i)}
-                          className="px-2 text-[#F87171]"
-                        >
-                          ×
-                        </button>
+                        />
                       )}
                     </div>
                   ))}
+                </Stack>
+                <div className="mt-2">
+                  <Link onClick={addReplyVariant}>+ добавить вариант</Link>
                 </div>
-                <button
-                  onClick={addReplyVariant}
-                  className="mt-2 text-xs text-[#4F7CFF] hover:underline"
-                >
-                  + добавить вариант
-                </button>
-              </div>
+              </Card>
 
               {stepError && (
-                <p className="mt-4 text-sm text-[#F87171]">{stepError}</p>
+                <Text className="mt-4 text-error">{stepError}</Text>
               )}
 
-              <button
+              <Button
+                width="100%"
+                variant="primary"
+                label="Далее"
                 onClick={goNext}
-                className="mt-6 w-full rounded-lg bg-[#4F7CFF] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#3D68EA]"
-              >
-                Далее
-              </button>
+                className="mt-6"
+              />
             </>
           )}
 
           {step === 3 && (
             <>
-              <button
-                onClick={goBack}
-                className="mb-4 text-xs text-[#7C8A9C] transition-colors hover:text-[#E7ECF2]"
-              >
-                ← Назад
-              </button>
-              <h2 className="mb-1 text-xl font-semibold text-[#E7ECF2]">
+              <Link onClick={goBack}>← Назад</Link>
+              <Heading level={2} className="mb-1 mt-4 text-lg font-medium">
                 Они получат
-              </h2>
-              <p className="mb-6 text-sm text-[#7C8A9C]">
+              </Heading>
+              <Text color="secondary" className="mb-6">
                 Настройте сообщение, которое бот пришлёт в директ.
-              </p>
+              </Text>
 
-              <div className="rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-medium text-[#E7ECF2]">
-                    приветственное DM
-                  </p>
-                  <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-[#4F7CFF]">
-                    <span className="inline-block h-4 w-4 translate-x-4 transform rounded-full bg-white" />
-                  </span>
-                </div>
-                <label className="mb-1.5 block text-xs text-[#7C8A9C]">
-                  {requireFollowCheck ? "Открывающее сообщение" : "Текст сообщения"}
-                </label>
-                <textarea
-                  value={dmText}
-                  onChange={(e) => setDmText(e.target.value)}
-                  rows={4}
-                  className="w-full resize-none rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
+              <Card padding={4}>
+                {/* Тумблер намеренно не интерактивен: dmText — обязательное
+                    поле бэкенда, полноценно выключить приветственное DM
+                    сейчас нельзя. Заблокированный Switch честно об этом
+                    сообщает, а не притворяется рабочим переключателем. */}
+                <Switch
+                  label="приветственное DM"
+                  value={true}
+                  isDisabled
+                  disabledMessage="Обязательное поле — пока не может быть отключено"
+                  labelSpacing="spread"
+                  className="mb-3"
                 />
-                <p className="mt-1.5 text-xs text-[#7C8A9C]">
-                  Обязательное поле — отправляется в директ подписчику
-                </p>
-              </div>
+                <TextArea
+                  label={
+                    requireFollowCheck
+                      ? "Открывающее сообщение"
+                      : "Текст сообщения"
+                  }
+                  value={dmText}
+                  onChange={(value) => setDmText(value)}
+                  rows={4}
+                  description="Обязательное поле — отправляется в директ подписчику"
+                />
+              </Card>
 
-              <div className="mt-4 rounded-xl border border-[#232D3A] bg-[#141B24] p-4">
-                <button
-                  type="button"
-                  onClick={() => setRequireFollowCheck((v) => !v)}
-                  className="flex w-full items-center justify-between"
-                >
-                  <span className="text-left">
-                    <p className="text-sm font-medium text-[#E7ECF2]">
-                      Проверять подписку перед выдачей
-                    </p>
-                    <p className="mt-0.5 text-xs text-[#7C8A9C]">
-                      Бот попросит подписаться, прежде чем прислать материал
-                    </p>
-                  </span>
-                  <span
-                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-                      requireFollowCheck ? "bg-[#4F7CFF]" : "bg-[#232D3A]"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        requireFollowCheck ? "translate-x-4" : "translate-x-0.5"
-                      }`}
-                    />
-                  </span>
-                </button>
+              <Card padding={4} className="mt-4">
+                <Switch
+                  label="Проверять подписку перед выдачей"
+                  description="Бот попросит подписаться, прежде чем прислать материал"
+                  value={requireFollowCheck}
+                  onChange={(checked) => setRequireFollowCheck(checked)}
+                  labelSpacing="spread"
+                />
 
                 {requireFollowCheck && (
-                  <div className="mt-4 space-y-4 border-t border-[#232D3A] pt-4">
-                    <div>
-                      <label className="mb-1.5 block text-xs text-[#7C8A9C]">
-                        Текст кнопки в открывающем сообщении
-                      </label>
-                      <input
-                        type="text"
-                        value={buttonTextInitial}
-                        onChange={(e) => setButtonTextInitial(e.target.value)}
-                        className="w-full rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs text-[#7C8A9C]">
-                        Сообщение, если подписки нет
-                      </label>
-                      <textarea
-                        value={messageIfNotFollowing}
-                        onChange={(e) =>
-                          setMessageIfNotFollowing(e.target.value)
-                        }
-                        rows={3}
-                        placeholder="Похоже, ты ещё не подписан(а). Подпишись и жми кнопку ниже 👇"
-                        className="w-full resize-none rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs text-[#7C8A9C]">
-                        Текст кнопки «Я подписался»
-                      </label>
-                      <input
-                        type="text"
-                        value={buttonTextFollowConfirm}
-                        onChange={(e) =>
-                          setButtonTextFollowConfirm(e.target.value)
-                        }
-                        className="w-full rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1.5 block text-xs text-[#7C8A9C]">
-                        Финальное сообщение
-                      </label>
-                      <textarea
-                        value={messageAfterFollow}
-                        onChange={(e) => setMessageAfterFollow(e.target.value)}
-                        rows={3}
-                        placeholder="Спасибо! Вот твоя ссылка: [ССЫЛКА]"
-                        className="w-full resize-none rounded-lg border border-[#232D3A] bg-[#0B0F14] px-3.5 py-2.5 text-sm text-[#E7ECF2] outline-none transition-colors focus:border-[#4F7CFF]"
-                      />
-                    </div>
-                  </div>
+                  <Stack gap={4} className="mt-4 border-t border-border pt-4">
+                    <TextInput
+                      label="Текст кнопки в открывающем сообщении"
+                      value={buttonTextInitial}
+                      onChange={(value) => setButtonTextInitial(value)}
+                    />
+                    <TextArea
+                      label="Сообщение, если подписки нет"
+                      value={messageIfNotFollowing}
+                      onChange={(value) => setMessageIfNotFollowing(value)}
+                      rows={3}
+                      placeholder="Похоже, ты ещё не подписан(а). Подпишись и жми кнопку ниже 👇"
+                    />
+                    <TextInput
+                      label="Текст кнопки «Я подписался»"
+                      value={buttonTextFollowConfirm}
+                      onChange={(value) => setButtonTextFollowConfirm(value)}
+                    />
+                    <TextArea
+                      label="Финальное сообщение"
+                      value={messageAfterFollow}
+                      onChange={(value) => setMessageAfterFollow(value)}
+                      rows={3}
+                      placeholder="Спасибо! Вот твоя ссылка: [ССЫЛКА]"
+                    />
+                  </Stack>
                 )}
-              </div>
+              </Card>
 
               {stepError && (
-                <p className="mt-4 text-sm text-[#F87171]">{stepError}</p>
+                <Text className="mt-4 text-error">{stepError}</Text>
               )}
 
-              <button
+              <Button
+                width="100%"
+                variant="primary"
+                isLoading={saving}
+                label={
+                  saving
+                    ? "Сохраняем…"
+                    : editingTemplate
+                      ? "Сохранить изменения"
+                      : "Создать шаблон"
+                }
                 onClick={handleSubmit}
-                disabled={saving}
-                className="mt-6 w-full rounded-lg bg-[#4F7CFF] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#3D68EA] disabled:opacity-50"
-              >
-                {saving
-                  ? "Сохраняем…"
-                  : editingTemplate
-                    ? "Сохранить изменения"
-                    : "Создать шаблон"}
-              </button>
+                className="mt-6"
+              />
             </>
           )}
         </div>
 
-        <div className="hidden flex-1 items-center justify-center overflow-hidden bg-[#05070A] p-10 lg:flex">
+        <div className="hidden flex-1 items-center justify-center overflow-hidden bg-body p-10 lg:flex">
           <PhonePreview
             step={step === 0 ? 0 : step === 3 ? 2 : 1}
             username={username}

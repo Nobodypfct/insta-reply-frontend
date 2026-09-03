@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Text } from "@astryxdesign/core/Text";
 import {
   ChevronLeft,
   MoreHorizontal,
@@ -85,9 +86,24 @@ export function PhonePreview({
 
   return (
     <div className="flex flex-col items-center">
-      <p className="mb-6 text-sm text-[#7C8A9C]">Предпросмотр</p>
+      <Text color="secondary" className="mb-6">
+        Предпросмотр
+      </Text>
 
-      <div className="relative h-[580px] w-[280px] overflow-hidden rounded-[42px] border-[6px] border-[#1B2430] bg-black">
+      {/*
+        data-astryx-theme на этой границе — не настоящая тема, а щит от
+        протечки: theme.css заскоуплена через
+        @scope([data-astryx-theme="insta-reply"]) to ([data-astryx-theme]),
+        и ЛЮБОЙ элемент с data-astryx-theme (даже с посторонним именем)
+        обрывает область действия внешней темы для всех потомков. Экран
+        внутри рамки телефона намеренно имитирует Instagram и не должен
+        краситься светлой темой приложения — см. задачу "полная миграция
+        на Astryx", раздел про исключение для PhonePreview.
+      */}
+      <div
+        data-astryx-theme="instagram-mock"
+        className="relative h-[580px] w-[280px] overflow-hidden rounded-[42px] border-[6px] border-[#1B2430] bg-black"
+      >
         {/* статус-бар — статичный элемент рамки, не часть анимируемого контента */}
         <StatusBar />
 
@@ -161,14 +177,14 @@ export function PhonePreview({
         </div>
       </div>
 
-      <div className="mt-5 flex items-center gap-1 rounded-full border border-[#232D3A] bg-[#141B24] p-1 text-xs">
+      <div className="mt-5 flex items-center gap-1 rounded-full border border-border-strong bg-surface p-1 text-xs">
         {(["Пост", "Комментарии", "Директ"] as const).map((label, i) => (
           <span
             key={label}
             className={`rounded-full px-3 py-1.5 transition-colors ${
               step === i
-                ? "bg-[#4F7CFF] text-white"
-                : "text-[#7C8A9C]"
+                ? "bg-accent-bg text-on-accent"
+                : "text-secondary"
             }`}
           >
             {label}

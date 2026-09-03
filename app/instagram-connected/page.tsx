@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { createClient } from "@/lib/supabase";
+import { Card } from "@astryxdesign/core/Card";
+import { Stack } from "@astryxdesign/core/Stack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { Button } from "@astryxdesign/core/Button";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -77,44 +82,41 @@ export default function InstagramConnectedPage() {
 
   if (conflict) {
     return (
-      <main className="min-h-screen bg-[#0B0F14] text-[#E7ECF2] flex items-center justify-center px-4">
-        <div className="w-full max-w-md rounded-xl border border-[#232D3A] bg-[#141B24] p-6">
-          <h1 className="text-base font-semibold mb-3">
+      <main className="flex min-h-screen items-center justify-center bg-body px-4">
+        <Card padding={6} width="100%" maxWidth={440}>
+          <Heading level={1} className="mb-3 text-base font-semibold">
             Аккаунт уже подключён
-          </h1>
-          <p className="text-sm text-[#9AA7B5] leading-relaxed mb-6">
-            Аккаунт{" "}
-            <strong className="text-[#E7ECF2]">@{conflict.username}</strong>{" "}
-            привязан к проекту пользователя{" "}
-            <strong className="text-[#E7ECF2]">
-              {conflict.existingOwnerEmail}
-            </strong>
-            . При переносе аккаунт и все его автоматизации будут удалены из
-            старого проекта и подключены к текущему.
-          </p>
-          <div className="flex gap-3">
-            <button
+          </Heading>
+          <Text color="secondary" className="mb-6 block">
+            Аккаунт <Text weight="bold">@{conflict.username}</Text> привязан к
+            проекту пользователя{" "}
+            <Text weight="bold">{conflict.existingOwnerEmail}</Text>. При
+            переносе аккаунт и все его автоматизации будут удалены из старого
+            проекта и подключены к текущему.
+          </Text>
+          <Stack direction="horizontal" gap={3}>
+            <Button
+              variant="secondary"
+              width="100%"
+              label="Отмена"
               onClick={() => router.push("/dashboard")}
-              className="flex-1 rounded-lg border border-[#232D3A] text-sm text-[#9AA7B5] py-2.5 hover:text-[#E7ECF2] transition-colors"
-            >
-              Отмена
-            </button>
-            <button
+            />
+            <Button
+              variant="primary"
+              width="100%"
+              isLoading={transferring}
+              label={transferring ? "Переносим…" : "Перенести аккаунт"}
               onClick={handleConfirmTransfer}
-              disabled={transferring}
-              className="flex-1 rounded-lg bg-[#4F7CFF] hover:bg-[#3D68EA] disabled:opacity-50 transition-colors text-white text-sm font-medium py-2.5"
-            >
-              {transferring ? "Переносим…" : "Перенести аккаунт"}
-            </button>
-          </div>
-        </div>
+            />
+          </Stack>
+        </Card>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#0B0F14] text-[#E7ECF2] flex items-center justify-center">
-      <p className="text-sm text-[#7C8A9C]">{message}</p>
+    <main className="flex min-h-screen items-center justify-center bg-body">
+      <Text color="secondary">{message}</Text>
     </main>
   );
 }

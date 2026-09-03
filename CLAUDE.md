@@ -1,6 +1,13 @@
 # CLAUDE.md — insta-reply-frontend
 
-Читается Claude Code автоматически при старте в этой директории.
+@AGENTS.md
+
+Читается Claude Code автоматически при старте в этой директории. Строка
+`@AGENTS.md` выше — импорт файла, который автоматически генерирует/
+обновляет сам Next.js при `next dev` (содержит предупреждения о
+breaking changes конкретной версии Next.js относительно стандартного
+API). Не удаляй эту строку — без неё Claude Code не увидит содержимое
+AGENTS.md вообще, он не читается автоматически сам по себе.
 
 ## Что это за проект
 
@@ -117,28 +124,34 @@ app/                          — ТОЛЬКО роутинг Next.js, тонк�
   login/page.tsx
   signup/page.tsx              (отдельно от /login, не режим внутри одной страницы)
   forgot-password/page.tsx
+  reset-password/page.tsx
+  dashboard/layout.tsx          — AppShell + сайдбар, общий для /dashboard и /dashboard/accounts/*
   dashboard/page.tsx
   dashboard/accounts/[id]/page.tsx
   instagram-connected/page.tsx
   api/auth/[...nextauth]/route.ts
   auth/confirm/route.ts
 
+theme/
+  custom-theme.ts               — кастомная Astryx-тема (см. "Дизайн-система" ниже)
+
 shared/
-  components/                 — переиспользуемые "глупые" UI-компоненты
-                                 (Button, Input, Card, Modal, Badge)
+  components/                 — переиспользуемые "глупые" UI-компоненты —
+                                 ТОЛЬКО наши повторяющиеся паттерны поверх
+                                 примитивов Astryx (например ActiveStatusBadge —
+                                 маппинг boolean → Badge), не обёртки вокруг
+                                 самих примитивов Astryx (Button/TextInput/Card
+                                 и т.п. используем напрямую)
   api/client.ts                — базовый fetch-wrapper к нашему Express-бэкенду
                                  (NEXT_PUBLIC_API_URL, обработка ошибок в одном месте)
   lib/supabase.ts              — Supabase browser client
-  config/tokens.ts             — дизайн-токены (см. раздел "Дизайн-система" ниже)
 
 entities/                     — модели данных + запросы к ним по сущностям
-  ig-account/{types.ts, api.ts}   — getAccounts(), connectAccount(), getMedia()
+  ig-account/{types.ts, api.ts}   — getAccounts(), getMedia()
   template/{types.ts, api.ts}     — CRUD шаблонов
 
 features/                     — юзер-сценарии (форма + локальная логика действия)
-  auth/{LoginForm, SignupForm, ForgotPasswordForm}.tsx
-  instagram-connect/{ConnectButton, OwnerConflictModal}.tsx
-  template-management/{TemplateForm, PostPicker}.tsx
+  template-management/{TemplateWizard, PostPicker, PhonePreview}.tsx
 ```
 
 **Правила:**
@@ -153,10 +166,57 @@ features/                     — юзер-сценарии (форма + лок
 - CRUD-запросы (`fetch` к `/api/ig-accounts`, `/api/templates` и т.д.)
   живут в `entities/*/api.ts`, не размазаны по компонентам.
 
-Тёмная тема, фон `#0B0F14`, карточки `#141B24`, границы `#232D3A`,
-акцент `#4F7CFF`, текст вторичный `#7C8A9C`/`#9AA7B5`, успех `#22C55E`,
-ошибка `#F87171`, предупреждение `#F59E0B`. Скруглённые углы (`rounded-lg`/
-`rounded-xl`), без теней, минималистично.
+## Дизайн-система — Astryx, светлая тема
+
+Весь UI (кроме одного явного исключения ниже) — на компонентах
+[Astryx](https://astryx.atmeta.com) (`@astryxdesign/core`), открытой
+дизайн-системе от Meta (React 19 + StyleX). Светлая тема,
+**никаких захардкоженных hex-цветов** — только токены темы.
+
+- **Провайдер**: `components/AstryxProvider.tsx`, подключён в корневом
+  `app/layout.tsx` (оборачивает всё приложение), `mode="light"` явно —
+  не полагаемся на системную тему ОС.
+- **Кастомная тема**: `theme/custom-theme.ts` — `defineTheme({ extends:
+  neutralTheme, tokens: {...} })` поверх `@astryxdesign/theme-neutral`.
+  У голой `neutralTheme` акцент монохромный (почти чёрный/белый — тема
+  так и называется, "neutral"). Мы переопределяем `--color-accent`,
+  `--color-text-accent`, `--color-icon-accent` на `var(--color-text-blue)`
+  — это РЕАЛЬНЫЙ токен темы (готовый синий из её hue-палитры), не
+  выдуманный hex. Тот же приём (`var()`-ссылка на другой токен), которым
+  сама `theme-neutral` пользуется внутри для своего `variant:accent`.
+  Тема больше не "built" — собирается в рантайме через `defineTheme`,
+  поэтому статический `@import theme-neutral/theme.css` в `globals.css`
+  убран, CSS инжектится самим `<Theme>` при монтировании.
+- **Токены**: перед тем как хардкодить цвет/отступ — проверяй
+  `npx astryx docs tokens` (полный список) и `npx astryx component <Name>`
+  (API конкретного компонента). Не выдумывай hex "на глаз". Если для
+  чего-то реально нет подходящего токена — это повод спросить, а не
+  придумывать значение самостоятельно.
+- **CLI требует Node ≥ 22.13** (у нас в `nvm` есть `v24.7.0` — переключайся
+  на него: `nvm use v24.7.0`), а сам `next build`/`next dev` — Node ≥ 20.9
+  (`package.json` engines у `next`). Если сборка падает с жалобой на
+  версию Node — это оно, не баг в коде.
+- **Google-логотип** на `/login` (`app/login/page.tsx`) — единственное
+  осознанное исключение из "только токены": это официальный многоцветный
+  SVG-ассет Google (гайдлайны Google Identity для кнопки "Войти через
+  Google"), не наш цвет дизайн-системы.
+
+### ИСКЛЮЧЕНИЕ — мокап телефона в визарде шаблонов
+
+`features/template-management/PhonePreview.tsx` — экран ВНУТРИ рамки
+iPhone (статус-бар, посты/комментарии/DM) **намеренно тёмный** и не
+мигрирован на Astryx: он имитирует реальный интерфейс Instagram, а не
+наш UI. Технически это обеспечено атрибутом
+`data-astryx-theme="instagram-mock"` на корневом узле рамки телефона —
+Astryx theme CSS заскоуплена через
+`@scope([data-astryx-theme="insta-reply"]) to ([data-astryx-theme])`, и
+ЛЮБОЙ вложенный `data-astryx-theme` (даже с посторонним именем) обрывает
+область действия внешней темы для потомков. Не убирай этот атрибут —
+без него светлая тема "протечёт" в мокап (уже бывало похожим образом с
+`<h1>` до того, как это исправили). Всё, что физически СНАРУЖИ рамки
+телефона (подпись "Предпросмотр", шаг-индикатор под мокапом,
+сама форма визарда слева) — обычный светлый Astryx UI, мигрировано как
+и всё остальное.
 
 ## Что НЕ делать
 
