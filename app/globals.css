@@ -9,7 +9,13 @@
 @import "tailwindcss/preflight.css" layer(base);
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
-@import "@astryxdesign/theme-neutral/theme.css";
+/*
+ * Статический theme-neutral/theme.css убран: наша кастомная тема
+ * (theme/custom-theme.ts, extends: neutralTheme + синий accent) не "built" —
+ * она собирается и инжектится в рантайме через <Theme>, под своим именем
+ * ("insta-reply", не "neutral"). Оставленный здесь theme.css был бы мёртвым
+ * CSS — его @scope([data-astryx-theme="neutral"]) не совпадал бы ни с чем.
+ */
 @import "@astryxdesign/core/tailwind-theme.css";
 @import "tailwindcss/utilities.css" layer(utilities);
 

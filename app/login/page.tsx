@@ -96,13 +96,23 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white px-4 py-12">
-      <div className="w-full max-w-[420px]">
-        <Stack gap={1} className="mb-8">
-          <Text type="label" color="secondary">
+    // Горизонтально центрируем тем же паттерном, что и dashboard (max-width +
+    // mx-auto), а не flex-центрированием контейнера — для консистентности.
+    // По вертикали форма стоит в верхней трети (pt-20), а не строго по
+    // центру viewport, как на референсе.
+    <main className="min-h-screen bg-white px-4 pb-10 pt-20">
+      <div className="mx-auto w-full max-w-[440px]">
+        <Stack gap={1} className="mb-10">
+          <Text
+            type="label"
+            color="secondary"
+            className="text-[11px] tracking-wider"
+          >
             INSTA-REPLY
           </Text>
-          <Heading level={1}>Войти в кабинет</Heading>
+          <Heading level={1} className="text-xl font-medium">
+            Войти в кабинет
+          </Heading>
         </Stack>
 
         {unconfirmedEmail ? (
@@ -113,11 +123,12 @@ export default function LoginPage() {
               ссылка для подтверждения.
             </Text>
             {resendDone ? (
-              <Text className="text-success">
-                Письмо отправлено повторно ✓
-              </Text>
+              <Text className="text-success">Письмо отправлено повторно ✓</Text>
             ) : (
-              <Link onClick={handleResendConfirmation} isDisabled={resendLoading}>
+              <Link
+                onClick={handleResendConfirmation}
+                isDisabled={resendLoading}
+              >
                 {resendLoading ? "Отправляем…" : "Отправить письмо ещё раз"}
               </Link>
             )}
@@ -132,23 +143,23 @@ export default function LoginPage() {
             </Link>
           </Stack>
         ) : (
-          <Stack gap={5}>
+          <Stack gap={6}>
             <form onSubmit={handleSubmit}>
-              <Stack gap={4}>
+              <Stack gap={5}>
                 <TextInput
                   label="Email"
                   type="email"
-                  isRequired
+                  size="lg"
                   value={email}
                   onChange={(value) => setEmail(value)}
                   placeholder="you@example.com"
                 />
 
-                <Stack gap={1.5}>
+                <Stack gap={2}>
                   <TextInput
                     label="Пароль"
                     type="password"
-                    isRequired
+                    size="lg"
                     value={password}
                     onChange={(value) => setPassword(value)}
                     placeholder="не меньше 6 символов"
@@ -170,25 +181,34 @@ export default function LoginPage() {
             </form>
 
             <Divider
-              label={
-                <span className="tracking-wide">ИЛИ ВОЙДИТЕ ЧЕРЕЗ</span>
-              }
+              label={<span className="tracking-wide">ИЛИ ВОЙДИТЕ ЧЕРЕЗ</span>}
             />
 
+            {/*
+              variant="secondary" красит заливкой (theme-neutral не даёт
+              outline-варианта из коробки) — переопределяем именно фон и
+              рамку через уже готовые Tailwind-токены темы (см.
+              tailwind-theme.css), не хардкодя hex. border-border-strong —
+              тот же токен (--color-border-emphasized), что использует
+              рамка TextInput, для полной визуальной консистентности.
+            */}
             <Button
               variant="secondary"
               width="100%"
               icon={<GoogleIcon />}
               label="Продолжить с Google"
               onClick={() => handleOAuth("google")}
+              className="border border-border-strong bg-surface hover:bg-body"
             />
           </Stack>
         )}
 
         {!unconfirmedEmail && (
-          <Text justify="center" color="secondary" className="mt-6">
-            Ещё нет аккаунта? <Link href="/signup">Создать</Link>
-          </Text>
+          <div className="flex justify-center">
+            <Text justify="center" color="secondary" className="mt-6">
+              Ещё нет аккаунта? <Link href="/signup">Создать</Link>
+            </Text>
+          </div>
         )}
       </div>
     </main>
