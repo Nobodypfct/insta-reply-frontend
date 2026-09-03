@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Text } from "@astryxdesign/core/Text";
 import {
@@ -59,6 +59,30 @@ type PhonePreviewProps = {
 
 const REACTIONS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"];
 
+/**
+ * Локальная палитра DM-мокапа (экран директа внутри рамки телефона) —
+ * CSS custom properties, а НЕ Astryx-токены: этот файл — единственное
+ * осознанное исключение из "только токены" (см. CLAUDE.md, раздел
+ * "мокап телефона в визарде шаблонов"), он имитирует Instagram, а не наш
+ * UI. Заведены как переменные (а не точечные `bg-[#хекс]` россыпью по
+ * файлу), как и запрошено, но именно так, а не через JS-интерполяцию в
+ * Tailwind-классы — Tailwind ищет `bg-[...]` как ЛИТЕРАЛЬНУЮ строку в
+ * исходниках на этапе сборки, `bg-[${var}]` в рантайме он не увидит и
+ * класс просто не сгенерирует. Поэтому: константы объявлены здесь для
+ * читаемости и как источник истины, подключены через `style` на корневой
+ * узел рамки (см. `data-astryx-theme="instagram-mock"` ниже), а в JSX
+ * используются как `bg-[var(--chat-bg)]` — такая строка уже литеральна.
+ */
+const MOCKUP_COLORS = {
+  "--chat-bg": "#121212",
+  "--chat-header-bg": "#000000",
+  "--chat-incoming-bg": "#262626",
+  "--chat-incoming-text": "#f5f5f5",
+  "--chat-quickreply-bg": "#333333",
+  "--chat-quickreply-border": "rgba(255,255,255,0.15)",
+  "--chat-outgoing-bg": "#5b52e8",
+} as CSSProperties;
+
 export function PhonePreview({
   step,
   username,
@@ -102,6 +126,7 @@ export function PhonePreview({
       */}
       <div
         data-astryx-theme="instagram-mock"
+        style={MOCKUP_COLORS}
         className="relative h-[580px] w-[280px] overflow-hidden rounded-[42px] border-[6px] border-[#1B2430] bg-black"
       >
         {/* статус-бар — статичный элемент рамки, не часть анимируемого контента */}
@@ -574,8 +599,8 @@ function DMScreen({
   }
 
   return (
-    <div className="flex h-full flex-col bg-black pt-11 text-white">
-      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-2.5">
+    <div className="flex h-full flex-col bg-[var(--chat-bg)] pt-11 text-white">
+      <div className="flex items-center gap-3 border-b border-white/10 bg-[var(--chat-header-bg)] px-4 py-2.5">
         <ChevronLeft size={18} className="text-white/70" />
         <AccountAvatar
           letter={avatarLetter}
@@ -590,33 +615,47 @@ function DMScreen({
         <Video size={18} className="text-white/50" />
       </div>
 
-      <div className="flex flex-1 flex-col justify-end gap-3 overflow-y-auto px-4 py-4">
+      <div className="flex flex-1 flex-col justify-end gap-2.5 overflow-y-auto px-4 py-4">
         {timeline.length > 0 ? (
-          timeline.map((item, i) =>
-            item.kind === "bot" ? (
+          timeline.map((item, i) => {
+            // Аватар и "хвостик" — только у первого сообщения в серии
+            // подряд идущих сообщений ОДНОГО отправителя, как в настоящем
+            // Instagram: если предыдущий элемент ленты того же типа
+            // (bot/user), это продолжение той же группы.
+            const isFirstInGroup = i === 0 || timeline[i - 1].kind !== item.kind;
+
+            return item.kind === "bot" ? (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.4, duration: 0.3, ease: "easeOut" }}
-                className="flex max-w-[85%] flex-col items-start gap-1.5"
+                className="flex max-w-[85%] items-end gap-2"
               >
-                <div className="flex items-end gap-2">
+                {isFirstInGroup ? (
                   <AccountAvatar
                     letter={avatarLetter}
                     avatarUrl={avatarUrl}
                     loading={usernameLoading}
                     className="h-6 w-6 text-[10px]"
                   />
-                  <div className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-neutral-800 px-3.5 py-2.5 text-sm leading-relaxed text-white/90">
-                    {item.text}
-                  </div>
-                </div>
-                {item.button && (
-                  <div className="ml-8 rounded-full border border-[#4F7CFF]/40 bg-[#4F7CFF]/10 px-3.5 py-1.5 text-xs font-medium text-[#4F7CFF]">
-                    {item.button}
-                  </div>
+                ) : (
+                  <div className="h-6 w-6 shrink-0" />
                 )}
+                <div
+                  className={`overflow-hidden rounded-2xl bg-[var(--chat-incoming-bg)] text-[var(--chat-incoming-text)] ${
+                    isFirstInGroup ? "rounded-bl-sm" : ""
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap px-3.5 py-2.5 text-sm leading-relaxed">
+                    {item.text}
+                  </p>
+                  {item.button && (
+                    <div className="border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium">
+                      {item.button}
+                    </div>
+                  )}
+                </div>
               </motion.div>
             ) : (
               <motion.div
@@ -624,12 +663,14 @@ function DMScreen({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.4, duration: 0.3, ease: "easeOut" }}
-                className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-[#4F7CFF] px-3.5 py-2.5 text-sm leading-relaxed text-white"
+                className={`ml-auto max-w-[85%] rounded-2xl bg-[var(--chat-outgoing-bg)] px-3.5 py-2.5 text-sm leading-relaxed text-white ${
+                  isFirstInGroup ? "rounded-br-sm" : ""
+                }`}
               >
                 {item.text}
               </motion.div>
-            ),
-          )
+            );
+          })
         ) : (
           <p className="text-center text-xs text-white/30">
             Введите текст сообщения слева
@@ -645,9 +686,9 @@ function DMScreen({
         <div className="flex-1 rounded-full border border-white/10 bg-neutral-900 px-3 py-1.5 text-xs text-white/30">
           Сообщение…
         </div>
-        <ImageIcon size={18} className="text-white/40" />
-        <Smile size={18} className="text-white/40" />
-        <Plus size={18} className="text-white/40" />
+        <ImageIcon size={18} className="text-white/70" />
+        <Smile size={18} className="text-white/70" />
+        <Plus size={18} className="text-white/70" />
       </div>
     </div>
   );
