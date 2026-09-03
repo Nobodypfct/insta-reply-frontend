@@ -482,13 +482,20 @@ function CommentsSheet({
       <div className="flex justify-center pt-2">
         <div className="h-1 w-9 rounded-full bg-[#3A4657]" />
       </div>
-      <p className="border-b border-[#232D3A] py-3 text-center text-sm font-semibold text-white">
-        Комментарии
-      </p>
+      {/* grid 1fr/auto/1fr — тот же приём, что и в StatusBar: заголовок
+          остаётся ровно по центру независимо от ширины иконки справа,
+          левая колонка — просто балансирующий пустой трек */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-[#232D3A] px-4 py-3">
+        <span />
+        <p className="text-center text-sm font-semibold text-white">
+          Комментарии
+        </p>
+        <Send size={18} className="justify-self-end text-white" />
+      </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        <div className="flex gap-2.5">
-          <div className="h-7 w-7 shrink-0 rounded-full bg-[#232D3A]" />
+        <div className="flex items-start gap-2.5">
+          <div className="h-7 w-7 shrink-0 rounded-full bg-white/90" />
           <div className="flex-1 text-xs">
             <p className="text-white/90">
               <span className="font-medium">кто_то</span>{" "}
@@ -497,8 +504,8 @@ function CommentsSheet({
             <p className="mt-0.5 text-white/80">{commentText}</p>
             <p className="mt-1 text-white/30">Ответить</p>
 
-            {/* ответ бота — вложенный reply, отступ + бордер слева, как в
-                настоящем Instagram */}
+            {/* ответ бота — вложенный reply, просто отступом (без border-l
+                — так на референсе, настоящий Instagram линию не рисует) */}
             <AnimatePresence>
               {replyPhase !== "idle" && (
                 <motion.div
@@ -507,7 +514,7 @@ function CommentsSheet({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="mt-3 flex gap-2 border-l border-[#232D3A] pl-3"
+                  className="mt-3 flex items-start gap-2 pl-3"
                 >
                   <AccountAvatar
                     letter={avatarLetter}
@@ -533,11 +540,14 @@ function CommentsSheet({
                         {replyText || "Спасибо за комментарий 🙌"}
                       </p>
                     )}
+                    <p className="mt-1 text-white/30">Ответить</p>
                   </div>
+                  <Heart size={14} className="mt-0.5 shrink-0 text-white/70" />
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
+          <Heart size={14} className="mt-0.5 shrink-0 text-white/70" />
         </div>
       </div>
 
@@ -548,9 +558,20 @@ function CommentsSheet({
       </div>
 
       <div className="flex items-center gap-2 px-3 pb-4">
-        <div className="h-7 w-7 shrink-0 rounded-full bg-[#4F7CFF]" />
+        <AccountAvatar
+          letter={avatarLetter}
+          avatarUrl={avatarUrl}
+          loading={usernameLoading}
+          className="h-7 w-7 text-[11px]"
+        />
         <div className="flex-1 rounded-full border border-[#232D3A] bg-[#0B0F14] px-3 py-1.5 text-xs text-white/30">
-          Комментарий…
+          Комментарий для{" "}
+          <AccountName
+            username={username}
+            loading={usernameLoading}
+            skeletonWidth="w-14"
+          />
+          …
         </div>
       </div>
     </div>
