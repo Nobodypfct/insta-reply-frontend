@@ -184,9 +184,38 @@ features/                     — юзер-сценарии (форма + лок
   — это РЕАЛЬНЫЙ токен темы (готовый синий из её hue-палитры), не
   выдуманный hex. Тот же приём (`var()`-ссылка на другой токен), которым
   сама `theme-neutral` пользуется внутри для своего `variant:accent`.
-  Тема больше не "built" — собирается в рантайме через `defineTheme`,
-  поэтому статический `@import theme-neutral/theme.css` в `globals.css`
-  убран, CSS инжектится самим `<Theme>` при монтировании.
+  **Тема ОБЯЗАНА быть собранной (`astryx theme build`), не рантайм-`defineTheme`
+  напрямую** — иначе FOUC на каждой загрузке (см. ниже).
+
+  `theme/custom-theme.ts` — исходник (редактируется руками). Собранные
+  артефакты — `theme/custom-theme.css` + `theme/insta-reply.{js,d.ts,
+  variants.d.ts}` — генерируются командой, коммитятся в репозиторий
+  (`next build` их сам не пересобирает):
+
+  ```bash
+  nvm use v24.7.0   # CLI требует Node ≥ 22.13
+  npx astryx theme build theme/custom-theme.ts -o theme/custom-theme.css
+  ```
+
+  `AstryxProvider.tsx` импортирует `instaReplyTheme` из
+  `theme/insta-reply.js` (НЕ `customTheme` из `custom-theme.ts` напрямую),
+  `app/globals.css` статически импортирует `theme/custom-theme.css` в
+  правильном слое (`@layer astryx-theme`, там же где раньше сидел
+  `theme-neutral/theme.css`). После любой правки `custom-theme.ts` —
+  пересобери командой выше и закоммить все сгенерированные файлы.
+
+  **Почему это критично (FOUC-баг, было исправлено)**: `astryx.css`
+  (общий для всех тем, статический, всегда в SSR) сам объявляет дефолтные
+  токены на голом `:root` — например `--color-accent: #0064E0`
+  (светло-синий, "no theme" вид Astryx). Наша тема должна переопределить
+  это НАШИМ `#00458c` под `[data-astryx-theme="insta-reply"]`. Если этот
+  override — несобранный `defineTheme(...)`, `<Theme>` красит его через
+  `useInsertionEffect`, который выполняется ТОЛЬКО НА КЛИЕНТЕ ПОСЛЕ
+  ГИДРАТАЦИИ: SSR и первый пейнт получают дефолт Astryx, и через мгновение
+  после гидратации страница видимо перекрашивается — кнопки, фон и т.д.
+  Собранная тема (`__built: true`) полностью пропускает эту рантайм-инъекцию
+  — `<Theme>` только выставляет `data-astryx-theme`, а сам CSS уже приехал
+  статическим `<link>`/бандлом с первого пейнта.
 - **Токены**: перед тем как хардкодить цвет/отступ — проверяй
   `npx astryx docs tokens` (полный список) и `npx astryx component <Name>`
   (API конкретного компонента). Не выдумывай hex "на глаз". Если для

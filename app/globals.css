@@ -10,12 +10,28 @@
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
 /*
- * Статический theme-neutral/theme.css убран: наша кастомная тема
- * (theme/custom-theme.ts, extends: neutralTheme + синий accent) не "built" —
- * она собирается и инжектится в рантайме через <Theme>, под своим именем
- * ("insta-reply", не "neutral"). Оставленный здесь theme.css был бы мёртвым
- * CSS — его @scope([data-astryx-theme="neutral"]) не совпадал бы ни с чем.
+ * СТАТИЧЕСКИЙ collected CSS кастомной темы — НЕ убирать и не заменять
+ * обратно на рантайм-инжекцию через <Theme>. Причина: astryx.css выше
+ * (единый для всех тем, кэшируется/рендерится сразу) сам объявляет
+ * дефолтные --color-accent и другие токены на голом :root (см.
+ * @layer astryx-base) — это официальный, "no theme" вид Astryx. Наша тема
+ * переопределяет их СВОИМ значением только под [data-astryx-theme=
+ * "insta-reply"]. Если этот override приезжает не статическим CSS, а через
+ * useInsertionEffect в <Theme> (как было до фикса FOUC-бага), он применяется
+ * ТОЛЬКО НА КЛИЕНТЕ ПОСЛЕ ГИДРАТАЦИИ — SSR и первый пейнт красятся
+ * дефолтными токенами Astryx (светло-синий #0064E0), а через мгновение после
+ * гидратации перекрашиваются в наши (тёмно-синий #00458c) — видимый флэш.
+ * Собранный файл ниже — обычный @import, присутствует в HTML с первого
+ * пейнта на сервере и на клиенте одинаково, флэша нет.
+ *
+ * Пересобрать после правки theme/custom-theme.ts:
+ *   npx astryx theme build theme/custom-theme.ts -o theme/custom-theme.css
+ * (нужен Node ≥ 22.13 — nvm use v24.7.0) и закоммитить все
+ * сгенерированные файлы (theme/custom-theme.css, theme/insta-reply.js,
+ * theme/insta-reply*.d.ts) — они не пересобираются автоматически в
+ * `next build`.
  */
+@import "../theme/custom-theme.css";
 @import "@astryxdesign/core/tailwind-theme.css";
 @import "tailwindcss/utilities.css" layer(utilities);
 

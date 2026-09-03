@@ -7,22 +7,19 @@ import { Home, AtSign, HelpCircle, LogOut } from "lucide-react";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import { SideNav, SideNavItem } from "@astryxdesign/core/SideNav";
 import { Avatar } from "@astryxdesign/core/Avatar";
-import { Tooltip } from "@astryxdesign/core/Tooltip";
+import { Text } from "@astryxdesign/core/Text";
 import { IconButton } from "@astryxdesign/core/IconButton";
 import { createClient } from "@/lib/supabase";
 
 /**
- * Общий layout для всего раздела /dashboard — узкий icon-only сайдбар
- * (без текстовых подписей, как в референсе ManyChat): аватар юзера сверху,
- * навигация (Главная/Аккаунты), Help + Выйти внизу.
- *
- * SideNavItem сам оборачивается в Tooltip с текстом label, когда SideNav
- * свёрнут (isCollapsed) — отдельно оборачивать не нужно, это встроенное
- * поведение компонента.
+ * Общий layout для всего раздела /dashboard — развёрнутый сайдбар
+ * фиксированной ширины (не icon-only: иконка + текстовый лейбл рядом,
+ * это дефолтный вид SideNav без `collapsible`). Аватар + email юзера
+ * сверху, навигация (Главная/Аккаунты), Help + Выйти внизу.
  *
  * "Настройки" сознательно НЕ добавлены: страницы настроек ещё не
  * существует, а нерабочую ссылку в постоянно видимом сайдбаре решил не
- * оставлять (см. итоговое сообщение задачи).
+ * оставлять.
  */
 export default function DashboardLayout({
   children,
@@ -54,34 +51,29 @@ export default function DashboardLayout({
       contentPadding={0}
       sideNav={
         <SideNav
-          collapsible={{ isCollapsed: true, hasButton: false }}
           header={
-            <div className="flex justify-center py-3">
-              <Tooltip content={email ?? "Профиль"}>
-                <Avatar name={email ?? undefined} size="lg" />
-              </Tooltip>
+            <div className="flex items-center gap-2.5 px-3 py-3">
+              <Avatar name={email ?? undefined} size="md" />
+              <Text
+                type="supporting"
+                color="secondary"
+                className="min-w-0 flex-1 truncate"
+              >
+                {email ?? "Профиль"}
+              </Text>
             </div>
           }
           footerIcons={
-            <div className="flex justify-center py-2">
-              <Tooltip content="Помощь">
-                <IconButton
-                  label="Помощь"
-                  icon={<HelpCircle size={22} />}
-                  variant="ghost"
-                  size="lg"
-                />
-              </Tooltip>
+            <div className="px-1">
+              <IconButton
+                label="Помощь"
+                icon={<HelpCircle size={20} />}
+                variant="ghost"
+                tooltip="Помощь"
+              />
             </div>
           }
-          footer={
-            <SideNavItem
-              label="Выйти"
-              icon={LogOut}
-              onClick={handleLogout}
-              size="lg"
-            />
-          }
+          footer={<SideNavItem label="Выйти" icon={LogOut} onClick={handleLogout} />}
         >
           <SideNavItem
             label="Главная"
@@ -89,7 +81,6 @@ export default function DashboardLayout({
             href="/dashboard"
             as={NextLink}
             isSelected={isHome}
-            size="lg"
           />
           <SideNavItem
             label="Аккаунты"
@@ -97,7 +88,6 @@ export default function DashboardLayout({
             href="/dashboard/accounts"
             as={NextLink}
             isSelected={isAccountsSection}
-            size="lg"
           />
         </SideNav>
       }

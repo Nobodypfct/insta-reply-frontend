@@ -111,11 +111,23 @@ export default function DashboardOverviewPage() {
             Начать здесь
           </Heading>
 
+          {/*
+            Единственный существующий флоу создания шаблона — TemplateWizard,
+            открываемый со страницы конкретного аккаунта. Если аккаунт ровно
+            один — ведём прямиком туда с ?newTemplate=1 (страница сама
+            откроет визард, см. dashboard/accounts/[id]/page.tsx). Если
+            аккаунтов 0 или больше одного — ведём на список: нечего/не с кем
+            выбрать однозначно.
+          */}
           <div className="flex flex-wrap gap-4">
             {STARTER_CARDS.map((card) => (
               <ClickableCard
                 key={card.title}
-                href="/dashboard/accounts"
+                href={
+                  accounts.length === 1
+                    ? `/dashboard/accounts/${accounts[0].id}?newTemplate=1`
+                    : "/dashboard/accounts"
+                }
                 label={card.title}
                 padding={4}
                 width={280}

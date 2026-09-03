@@ -1,7 +1,7 @@
 "use client";
 
 import { Theme } from "@astryxdesign/core/theme";
-import { customTheme } from "@/theme/custom-theme";
+import { instaReplyTheme } from "@/theme/insta-reply";
 
 /**
  * Astryx (astryx.atmeta.com) — открытая дизайн-система от Meta. Оборачивает
@@ -18,14 +18,25 @@ import { customTheme } from "@/theme/custom-theme";
  * (неважно, зарегистрирована ли под этим именем настоящая тема) обрывает
  * область действия внешней темы для потомков — см. комментарий на месте.
  *
- * `customTheme` = neutralTheme + синий accent (см. theme/custom-theme.ts).
- * Тема больше не "built" (собирается в рантайме через defineTheme), поэтому
- * статический @import theme-neutral/theme.css в globals.css убран — CSS
- * инжектится сама Theme при монтировании.
+ * `instaReplyTheme` — СОБРАННАЯ (built) версия темы (theme/insta-reply.js,
+ * сгенерирован из theme/custom-theme.ts командой `astryx theme build`).
+ * ВАЖНО: раньше здесь импортировался `customTheme` из theme/custom-theme.ts
+ * напрямую (несобранный `defineTheme(...)`) — это вызывало заметный FOUC:
+ * несобранная тема красится через `useInsertionEffect` внутри <Theme>,
+ * который выполняется ТОЛЬКО на клиенте после гидратации. До этого момента
+ * действовали дефолтные токены Astryx из astryx.css (голый :root, без
+ * скоупа на тему) — например светло-синий accent `#0064E0` вместо нашего
+ * тёмно-синего `#00458c` — и страница на секунду перекрашивалась на глазах.
+ * `instaReplyTheme.__built === true`, поэтому <Theme> НЕ запускает
+ * useInsertionEffect вообще — CSS уже статически заимпортирован в
+ * globals.css (@import "../theme/custom-theme.css") и присутствует с
+ * первого серверного пейнта. Если правишь theme/custom-theme.ts — пересобери
+ * (см. комментарий в globals.css) и импортируй здесь всё равно
+ * `instaReplyTheme`, не `customTheme`.
  */
 export function AstryxProvider({ children }: { children: React.ReactNode }) {
   return (
-    <Theme theme={customTheme} mode="light">
+    <Theme theme={instaReplyTheme} mode="light">
       {children}
     </Theme>
   );

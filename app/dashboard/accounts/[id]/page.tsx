@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import NextLink from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase";
@@ -26,6 +26,7 @@ import { ActiveStatusBadge } from "@/shared/components/ActiveStatusBadge";
 
 export default function TemplatesPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const igAccountId = params.id as string;
 
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -65,6 +66,20 @@ export default function TemplatesPage() {
   useEffect(() => {
     loadData();
   }, [igAccountId]);
+
+  // Точка входа с карточек "Начать здесь" на /dashboard: ?newTemplate=1
+  // сразу открывает визард создания шаблона на этой странице, не заставляя
+  // юзера ещё раз нажимать "+ Новый шаблон" — единственная существующая
+  // точка входа, через которую можно передать намерение "создать
+  // автоматизацию" из главной. Открываем один раз за монтирование.
+  const openedFromQueryRef = useRef(false);
+  useEffect(() => {
+    if (openedFromQueryRef.current) return;
+    if (searchParams.get("newTemplate") === "1") {
+      openedFromQueryRef.current = true;
+      openNewForm();
+    }
+  }, [searchParams]);
 
   function openNewForm() {
     setEditingTemplate(null);
