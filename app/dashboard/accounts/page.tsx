@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Users } from "lucide-react";
 import { createClient } from "@/lib/supabase";
@@ -17,7 +17,6 @@ import { ClickableCard } from "@astryxdesign/core/ClickableCard";
 import { ActiveStatusBadge } from "@/shared/components/ActiveStatusBadge";
 
 function AccountsContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
 
@@ -32,10 +31,9 @@ function AccountsContent() {
   useEffect(() => {
     async function init() {
       const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        router.push("/login");
-        return;
-      }
+      // Гейт живёт в app/dashboard/layout.tsx (+ proxy.ts) — сюда без
+      // сессии не попасть; проверка ниже чисто для сужения типа.
+      if (!data.user) return;
       setUserId(data.user.id);
 
       const json = await getAccounts(data.user.id);

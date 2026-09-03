@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getAccounts } from "@/entities/ig-account/api";
@@ -40,7 +39,6 @@ const STARTER_CARDS: StarterCard[] = [
 ];
 
 export default function DashboardOverviewPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [displayName, setDisplayName] = useState("");
@@ -50,10 +48,9 @@ export default function DashboardOverviewPage() {
   useEffect(() => {
     async function init() {
       const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        router.push("/login");
-        return;
-      }
+      // Гейт живёт в app/dashboard/layout.tsx (+ proxy.ts) — сюда без
+      // сессии не попасть; проверка ниже чисто для сужения типа.
+      if (!data.user) return;
       setDisplayName(
         data.user.user_metadata?.full_name ||
           data.user.user_metadata?.name ||

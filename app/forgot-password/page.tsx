@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
@@ -9,9 +10,16 @@ import { Button } from "@astryxdesign/core/Button";
 import { Link } from "@astryxdesign/core/Link";
 import { Banner } from "@astryxdesign/core/Banner";
 import { createClient } from "@/lib/supabase";
+import { sanitizeNextPath } from "@/shared/lib/next-url";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordForm() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+
+  // Симметрично /login <-> /signup: если сюда пришли уже с ?next (по
+  // ссылке "Забыли пароль?" на /login), не теряем его на обратном пути.
+  const next = sanitizeNextPath(searchParams.get("next"));
+  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
 
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -82,9 +90,17 @@ export default function ForgotPasswordPage() {
         )}
 
         <Text justify="center" color="secondary" className="mt-6">
-          <Link href="/login">Вернуться ко входу</Link>
+          <Link href={loginHref}>Вернуться ко входу</Link>
         </Text>
       </div>
     </main>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }

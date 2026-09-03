@@ -26,10 +26,10 @@ export default function InstagramConnectedPage() {
     const s = session as any;
     const supabase = createClient();
     const { data } = await supabase.auth.getUser();
-    if (!data.user) {
-      router.push("/login");
-      return;
-    }
+    // Гейт живёт в app/instagram-connected/layout.tsx (+ proxy.ts) —
+    // сюда без сессии не попасть; проверка ниже чисто для сужения типа,
+    // а не как редирект-guard (дублировать его тут не нужно).
+    if (!data.user) return;
 
     const res = await fetch(`${API_URL}/api/complete-instagram-connect`, {
       method: "POST",

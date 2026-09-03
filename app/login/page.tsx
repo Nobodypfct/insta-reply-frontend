@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { sanitizeNextPath } from "@/shared/lib/next-url";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
@@ -38,9 +39,21 @@ function GoogleIcon() {
   );
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  // Санитайзится и здесь, и в middleware — middleware защищает свои
+  // собственные редиректы, но на /login можно попасть и напрямую по
+  // произвольной ссылке (?next=https://evil.com), минуя её, а next
+  // отсюда идёт в разные места (router.push, OAuth redirectTo) — доверять
+  // сырому значению из URL нельзя ни в одном из них.
+  const next = sanitizeNextPath(searchParams.get("next"));
+  const signupHref = next ? `/signup?next=${encodeURIComponent(next)}` : "/signup";
+  const forgotPasswordHref = next
+    ? `/forgot-password?next=${encodeURIComponent(next)}`
+    : "/forgot-password";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -69,16 +82,18 @@ export default function LoginPage() {
       setError(error.message);
       return;
     }
-    router.push("/dashboard");
+    router.push(next ?? "/dashboard");
   }
 
   async function handleResendConfirmation() {
     if (!unconfirmedEmail) return;
     setResendLoading(true);
+    const confirmUrl = new URL("/auth/confirm", window.location.origin);
+    if (next) confirmUrl.searchParams.set("next", next);
     await supabase.auth.resend({
       email: unconfirmedEmail,
       type: "signup",
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+      options: { emailRedirectTo: confirmUrl.toString() },
     });
     setResendLoading(false);
     setResendDone(true);
@@ -91,7 +106,7 @@ export default function LoginPage() {
   async function handleOAuth(provider: "google" | "facebook") {
     await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: { redirectTo: `${window.location.origin}${next ?? "/dashboard"}` },
     });
   }
 
@@ -164,7 +179,7 @@ export default function LoginPage() {
                     onChange={(value) => setPassword(value)}
                     placeholder="не меньше 6 символов"
                   />
-                  <Link href="/forgot-password">Забыли пароль?</Link>
+                  <Link href={forgotPasswordHref}>Забыли пароль?</Link>
                 </Stack>
 
                 {error && <Text className="text-error">{error}</Text>}
@@ -204,10 +219,18 @@ export default function LoginPage() {
 
         {!unconfirmedEmail && (
           <Text justify="center" color="secondary" className="mt-6">
-            Ещё нет аккаунта? <Link href="/signup">Создать</Link>
+            Ещё нет аккаунта? <Link href={signupHref}>Создать</Link>
           </Text>
         )}
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

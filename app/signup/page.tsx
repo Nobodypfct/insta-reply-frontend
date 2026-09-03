@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
@@ -10,9 +11,17 @@ import { Link } from "@astryxdesign/core/Link";
 import { Divider } from "@astryxdesign/core/Divider";
 import { Banner } from "@astryxdesign/core/Banner";
 import { createClient } from "@/lib/supabase";
+import { sanitizeNextPath } from "@/shared/lib/next-url";
 
-export default function SignupPage() {
+function SignupForm() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+
+  // См. комментарий к тому же в app/login/page.tsx — санитайзится и тут,
+  // а не только в middleware, потому что next отсюда идёт в OAuth
+  // redirectTo и в emailRedirectTo письма подтверждения.
+  const next = sanitizeNextPath(searchParams.get("next"));
+  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,11 +34,14 @@ export default function SignupPage() {
     setError(null);
     setLoading(true);
 
+    const confirmUrl = new URL("/auth/confirm", window.location.origin);
+    if (next) confirmUrl.searchParams.set("next", next);
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        emailRedirectTo: confirmUrl.toString(),
       },
     });
     setLoading(false);
@@ -54,7 +66,7 @@ export default function SignupPage() {
   async function handleOAuth(provider: "google" | "facebook") {
     await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+      options: { redirectTo: `${window.location.origin}${next ?? "/dashboard"}` },
     });
   }
 
@@ -138,10 +150,18 @@ export default function SignupPage() {
 
         {!signupDone && (
           <Text justify="center" color="secondary" className="mt-6">
-            Уже есть аккаунт? <Link href="/login">Войти</Link>
+            Уже есть аккаунт? <Link href={loginHref}>Войти</Link>
           </Text>
         )}
       </div>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
   );
 }
