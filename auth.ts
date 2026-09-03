@@ -83,6 +83,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.igAccessToken = account.access_token;
         token.igBusinessId = (profile as any)?.user_id ?? (profile as any)?.id;
         token.igUsername = (profile as any)?.username;
+        // Живёт только эту сессию Auth.js (сама она эфемерна, см.
+        // CLAUDE.md) — единственный шанс забрать этот URL у Instagram
+        // без лишнего запроса к Graph API. Дальше его надо переслать
+        // бэкенду вместе с long_lived_token при завершении подключения
+        // (см. app/instagram-connected/page.tsx), чтобы он не потерялся.
+        token.igProfilePictureUrl = (profile as any)?.profile_picture_url;
       }
       return token;
     },
@@ -90,6 +96,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       (session as any).igAccessToken = token.igAccessToken;
       (session as any).igBusinessId = token.igBusinessId;
       (session as any).igUsername = token.igUsername;
+      (session as any).igProfilePictureUrl = token.igProfilePictureUrl;
       return session;
     },
   },

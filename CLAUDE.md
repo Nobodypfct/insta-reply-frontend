@@ -115,6 +115,27 @@ npm run build    # проверка сборки перед деплоем — �
    но email ещё не подтверждён" — это отдельная ветка (ошибка
    `email_not_confirmed` при попытке логина).
 
+## Аватарка IG-аккаунта (`avatar_url`)
+
+Фронтенд полностью готов отображать реальную аватарку подключённого
+Instagram-аккаунта — карточки на `/dashboard/accounts` (через Astryx
+`Avatar`, сам откатывается на инициалы при отсутствии/ошибке загрузки
+`src`) и мокап телефона в визарде (`PhonePreview.tsx`'s `AccountAvatar` —
+свой ручной `onError`-фолбэк на буквенную заглушку, т.к. это тёмный
+Instagram-мокап вне Astryx). Пока везде показывает буквенный fallback —
+бэкенд ещё не отдаёт `avatar_url` в `IgAccount` (см. `entities/ig-account/
+types.ts`, поле опционально).
+
+`profile_picture_url` Instagram отдаёт только ОДИН раз — во время самого
+OAuth-подключения (эфемерная Auth.js-сессия, см. "Что НЕ делать"). Он уже
+прокинут через `auth.ts` (`token.igProfilePictureUrl`/`session.
+igProfilePictureUrl`, тот же паттерн, что `igAccessToken`) и отправляется
+бэкенду полем `profile_picture_url` в теле `POST /api/complete-instagram-
+connect` (`app/instagram-connected/page.tsx`) — бэкенд пока это поле
+игнорирует, задача сохранить его и научиться отдавать обратно поставлена
+отдельным промптом в бэкенд-репозиторий (см. переписку/таск-трекер, не
+дублирую текст здесь).
+
 ## Гейт защищённых страниц (редиректы авторизации)
 
 Двухслойная защита `/dashboard/**` и `/instagram-connected` — без клиентского

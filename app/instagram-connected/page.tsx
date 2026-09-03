@@ -37,6 +37,11 @@ export default function InstagramConnectedPage() {
       body: JSON.stringify({
         user_id: data.user.id,
         long_lived_token: s.igAccessToken,
+        // Единственный момент, когда у нас вообще есть этот URL (см.
+        // комментарий в auth.ts) — бэкенду нужно сохранить его сейчас,
+        // самим сходить за ним позже уже не выйдет без нового OAuth.
+        // Пока бэкенд не научится это поле принимать — просто игнорит.
+        profile_picture_url: s.igProfilePictureUrl ?? null,
         force_transfer: forceTransfer,
       }),
     });

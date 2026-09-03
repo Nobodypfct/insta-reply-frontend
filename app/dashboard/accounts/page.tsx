@@ -14,6 +14,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { ClickableCard } from "@astryxdesign/core/ClickableCard";
+import { Avatar } from "@astryxdesign/core/Avatar";
 import { ActiveStatusBadge } from "@/shared/components/ActiveStatusBadge";
 
 function AccountsContent() {
@@ -105,17 +106,31 @@ function AccountsContent() {
               href={`/dashboard/accounts/${acc.id}`}
               label={`Открыть шаблоны @${acc.username}`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <Text weight="medium">@{acc.username}</Text>
-                  <Text
-                    color="secondary"
-                    type="supporting"
-                    className="mt-0.5 block"
-                  >
-                    Подключён{" "}
-                    {new Date(acc.created_at).toLocaleDateString("ru-RU")}
-                  </Text>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  {/*
+                    src=undefined (не пока не отдаёт бэкенд avatar_url) —
+                    Avatar сам корректно откатывается на инициалы из name,
+                    это его штатное поведение, отдельный фолбэк не нужен.
+                  */}
+                  <Avatar
+                    src={acc.avatar_url ?? undefined}
+                    name={acc.username}
+                    size="md"
+                  />
+                  <div className="min-w-0">
+                    <Text weight="medium" className="truncate">
+                      @{acc.username}
+                    </Text>
+                    <Text
+                      color="secondary"
+                      type="supporting"
+                      className="mt-0.5 block"
+                    >
+                      Подключён{" "}
+                      {new Date(acc.created_at).toLocaleDateString("ru-RU")}
+                    </Text>
+                  </div>
                 </div>
                 <ActiveStatusBadge isActive={acc.webhook_enabled} />
               </div>

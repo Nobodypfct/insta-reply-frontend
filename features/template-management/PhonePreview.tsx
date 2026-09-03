@@ -311,6 +311,13 @@ function AccountName({
  * Аватар аккаунта: реальное фото, если есть `avatarUrl`, иначе буквенная
  * заглушка на акцентном фоне — и то и другое со skeleton-состоянием на
  * время загрузки. См. комментарий к `avatarUrl` в PhonePreviewProps.
+ *
+ * `brokenUrl` — URL Instagram отдаёт с TTL (протухает через какое-то
+ * время), а бэкенд его периодически, но не мгновенно, обновляет — так что
+ * иногда прилетит уже протухшая ссылка. Сравниваем именно со значением, а
+ * не булевым флагом: если `avatarUrl` поменяется на новый (юзер обновил
+ * аккаунт/бэкенд обновил кэш), это не "тот же" протухший URL — пробуем
+ * загрузить заново, а не залипаем на заглушке навсегда.
  */
 function AccountAvatar({
   letter,
@@ -323,17 +330,20 @@ function AccountAvatar({
   loading?: boolean;
   className: string;
 }) {
+  const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
+
   if (loading) {
     return (
       <div className={`${className} animate-pulse rounded-full bg-white/10`} />
     );
   }
-  if (avatarUrl) {
+  if (avatarUrl && avatarUrl !== brokenUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={avatarUrl}
         alt=""
+        onError={() => setBrokenUrl(avatarUrl)}
         className={`${className} shrink-0 rounded-full object-cover`}
       />
     );
