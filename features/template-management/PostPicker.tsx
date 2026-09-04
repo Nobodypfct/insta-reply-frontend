@@ -4,10 +4,17 @@ import { useState } from "react";
 import { RadioList, RadioListItem } from "@astryxdesign/core/RadioList";
 import { Text } from "@astryxdesign/core/Text";
 import { Link } from "@astryxdesign/core/Link";
+import { Banner } from "@astryxdesign/core/Banner";
 import type { IgMedia } from "@/entities/ig-account/types";
 
 type PostPickerProps = {
   media: IgMedia[];
+  /** GET .../media вернул ошибку (обычно протухший IG-токен аккаунта) —
+   * media в этом случае пустой массив, но пустой массив по ДРУГОЙ
+   * причине ("у аккаунта правда нет постов") не должен показывать то же
+   * самое сообщение — юзер решит, что нужно снять слово-триггер, а не
+   * переподключить аккаунт. */
+  mediaError?: boolean;
   scope: "post" | "any";
   selectedPostId: string | null;
   onScopeChange: (scope: "post" | "any") => void;
@@ -18,6 +25,7 @@ const VISIBLE_COUNT = 4;
 
 export function PostPicker({
   media,
+  mediaError = false,
   scope,
   selectedPostId,
   onScopeChange,
@@ -40,7 +48,13 @@ export function PostPicker({
 
       {scope === "post" && (
         <div className="mt-3">
-          {media.length === 0 ? (
+          {mediaError ? (
+            <Banner
+              status="warning"
+              title="Не удалось загрузить посты"
+              description="Возможно, у аккаунта истёк доступ к Instagram — попробуйте переподключить его."
+            />
+          ) : media.length === 0 ? (
             <Text color="secondary" type="supporting">
               Посты не найдены.
             </Text>

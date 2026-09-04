@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Users } from "lucide-react";
+import { Users, MoreVertical, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getAccounts } from "@/entities/ig-account/api";
 import type { IgAccount } from "@/entities/ig-account/types";
@@ -15,6 +15,7 @@ import { Banner } from "@astryxdesign/core/Banner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { ClickableCard } from "@astryxdesign/core/ClickableCard";
 import { Avatar } from "@astryxdesign/core/Avatar";
+import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { ActiveStatusBadge } from "@/shared/components/ActiveStatusBadge";
 
 function AccountsContent() {
@@ -132,7 +133,31 @@ function AccountsContent() {
                     </Text>
                   </div>
                 </div>
-                <ActiveStatusBadge isActive={acc.webhook_enabled} />
+                <div className="flex shrink-0 items-center gap-1">
+                  <ActiveStatusBadge isActive={acc.webhook_enabled} />
+                  {/*
+                    "Nested interactive elements work independently" —
+                    штатное поведение Astryx ClickableCard (см. его доки),
+                    отдельный stopPropagation не нужен: клик по меню не
+                    триггерит переход по href карточки.
+                  */}
+                  <DropdownMenu
+                    button={{
+                      icon: <MoreVertical size={16} />,
+                      variant: "ghost",
+                      isIconOnly: true,
+                      label: `Действия с @${acc.username}`,
+                    }}
+                    hasChevron={false}
+                    items={[
+                      {
+                        label: "Переподключить Instagram",
+                        icon: <RefreshCw size={14} />,
+                        onClick: handleConnect,
+                      },
+                    ]}
+                  />
+                </div>
               </div>
             </ClickableCard>
           ))}

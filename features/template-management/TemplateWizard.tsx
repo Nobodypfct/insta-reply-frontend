@@ -68,6 +68,11 @@ type TemplateWizardProps = {
   usernameLoading?: boolean;
   avatarUrl?: string | null;
   media: IgMedia[];
+  /** GET .../media вернул ошибку (см. app/dashboard/accounts/[id]/page.tsx)
+   * — обычно протухший IG-токен аккаунта. `media` в этом случае всегда `[]`,
+   * этот флаг нужен только чтобы PostPicker показал "не удалось
+   * загрузить", а не "постов нет" — разные по смыслу состояния. */
+  mediaError?: boolean;
   /** Уже загруженные шаблоны аккаунта (родитель их и так держит для списка
    * карточек) — нужны только для клиентской проверки "любой пост"-конфликта
    * (см. ANY_POST_CONFLICT_MESSAGE), без похода на бэкенд ради неё. */
@@ -83,6 +88,7 @@ export function TemplateWizard({
   usernameLoading = false,
   avatarUrl = null,
   media,
+  mediaError = false,
   existingTemplates,
   editingTemplate,
   onClose,
@@ -425,6 +431,7 @@ export function TemplateWizard({
 
               <PostPicker
                 media={media}
+                mediaError={mediaError}
                 scope={scope}
                 selectedPostId={postId}
                 onScopeChange={(s) => {

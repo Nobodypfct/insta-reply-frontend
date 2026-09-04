@@ -20,6 +20,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 import { Link } from "@astryxdesign/core/Link";
 import { Badge } from "@astryxdesign/core/Badge";
+import { Banner } from "@astryxdesign/core/Banner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { ActiveStatusBadge } from "@/shared/components/ActiveStatusBadge";
 
@@ -30,6 +31,11 @@ export default function TemplatesPage() {
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [media, setMedia] = useState<IgMedia[]>([]);
+  // GET /api/ig-accounts/:id/media отдаёт 500, если у аккаунта протух
+  // токен (см. переписку по задаче переподключения Instagram) — не
+  // должно ронять ни эту страницу, ни визард, только явно показать, что
+  // именно посты не загрузились (не спутать с "постов реально нет").
+  const [mediaError, setMediaError] = useState(false);
   const [account, setAccount] = useState<IgAccount | null>(null);
   const [accountLoading, setAccountLoading] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -41,18 +47,36 @@ export default function TemplatesPage() {
   async function loadData() {
     setLoading(true);
     setAccountLoading(true);
+    setMediaError(false);
 
-    const [tplJson, mediaJson, accountsJson] = await Promise.all([
+    // allSettled, не all — media отдельно, потому что именно она падает
+    // 500-кой на мёртвом IG-токене (см. состояние mediaError выше);
+    // шаблоны и список аккаунтов при этом загружаются нормально и не
+    // должны падать вместе с ней.
+    const [tplResult, mediaResult, accountsResult] = await Promise.allSettled([
       getTemplates(igAccountId),
       getMedia(igAccountId),
       getAccounts(),
     ]);
 
-    setTemplates(tplJson.templates || []);
-    setMedia(mediaJson.media || []);
-    setAccount(
-      accountsJson.accounts?.find((a) => a.id === igAccountId) ?? null,
-    );
+    if (tplResult.status === "fulfilled") {
+      setTemplates(tplResult.value.templates || []);
+    }
+
+    if (mediaResult.status === "fulfilled") {
+      setMedia(mediaResult.value.media || []);
+    } else {
+      setMedia([]);
+      setMediaError(true);
+    }
+
+    if (accountsResult.status === "fulfilled") {
+      setAccount(
+        accountsResult.value.accounts?.find((a) => a.id === igAccountId) ??
+          null,
+      );
+    }
+
     setAccountLoading(false);
     setLoading(false);
   }
@@ -124,6 +148,15 @@ export default function TemplatesPage() {
           onClick={openNewForm}
         />
       </div>
+
+      {!loading && mediaError && (
+        <Banner
+          status="warning"
+          title="Не удалось загрузить посты"
+          description="Возможно, у аккаунта истёк доступ к Instagram — попробуйте переподключить его на странице аккаунтов. Шаблоны и остальные функции работают как обычно."
+          className="mb-6"
+        />
+      )}
 
       {loading ? (
         <Text color="secondary">Загрузка…</Text>
@@ -219,6 +252,7 @@ export default function TemplatesPage() {
           // буквенный fallback.
           avatarUrl={account?.avatar_url ?? null}
           media={media}
+          mediaError={mediaError}
           existingTemplates={templates}
           editingTemplate={editingTemplate}
           onClose={() => setWizardOpen(false)}
