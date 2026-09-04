@@ -58,7 +58,7 @@ export default function DashboardOverviewPage() {
           "",
       );
 
-      const accountsJson = await getAccounts(data.user.id);
+      const accountsJson = await getAccounts();
       setAccounts(accountsJson.accounts || []);
 
       setLoading(false);

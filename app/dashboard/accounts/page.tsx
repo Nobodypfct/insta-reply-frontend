@@ -37,7 +37,7 @@ function AccountsContent() {
       if (!data.user) return;
       setUserId(data.user.id);
 
-      const json = await getAccounts(data.user.id);
+      const json = await getAccounts();
       setAccounts(json.accounts || []);
       setLoading(false);
     }

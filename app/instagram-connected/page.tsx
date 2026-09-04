@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { createClient } from "@/lib/supabase";
+import { completeInstagramConnect } from "@/entities/ig-account/api";
+import { ApiError } from "@/shared/api/client";
 import { Card } from "@astryxdesign/core/Card";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function InstagramConnectedPage() {
   const router = useRouter();
@@ -24,44 +23,32 @@ export default function InstagramConnectedPage() {
 
   async function completeConnect(forceTransfer: boolean) {
     const s = session as any;
-    const supabase = createClient();
-    const { data } = await supabase.auth.getUser();
-    // Гейт живёт в app/instagram-connected/layout.tsx (+ proxy.ts) —
-    // сюда без сессии не попасть; проверка ниже чисто для сужения типа,
-    // а не как редирект-guard (дублировать его тут не нужно).
-    if (!data.user) return;
-
-    const res = await fetch(`${API_URL}/api/complete-instagram-connect`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: data.user.id,
+    // Личность юзера бэкенд теперь берёт из Bearer-токена (добавляется
+    // в shared/api/client.ts), не из тела запроса — user_id тут больше
+    // не нужен и не отправляется. Гейт живёт в
+    // app/instagram-connected/layout.tsx (+ proxy.ts), сюда без сессии
+    // не попасть.
+    try {
+      const json = await completeInstagramConnect({
         long_lived_token: s.igAccessToken,
         // Единственный момент, когда у нас вообще есть этот URL (см.
         // комментарий в auth.ts) — бэкенду нужно сохранить его сейчас,
         // самим сходить за ним позже уже не выйдет без нового OAuth.
-        // Пока бэкенд не научится это поле принимать — просто игнорит.
         profile_picture_url: s.igProfilePictureUrl ?? null,
         force_transfer: forceTransfer,
-      }),
-    });
-
-    if (res.ok) {
-      const json = await res.json();
-      router.push(`/dashboard/accounts?connected=${json.username}`);
-      return;
-    }
-
-    if (res.status === 409) {
-      const json = await res.json();
-      setConflict({
-        username: json.username,
-        existingOwnerEmail: json.existingOwnerEmail,
       });
-      return;
+      router.push(`/dashboard/accounts?connected=${json.username}`);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        const body = e.body as { username: string; existingOwnerEmail: string };
+        setConflict({
+          username: body.username,
+          existingOwnerEmail: body.existingOwnerEmail,
+        });
+        return;
+      }
+      router.push("/dashboard/accounts?connect_error=backend_failed");
     }
-
-    router.push("/dashboard/accounts?connect_error=backend_failed");
   }
 
   useEffect(() => {

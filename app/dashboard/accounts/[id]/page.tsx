@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import NextLink from "next/link";
 import { ShieldCheck } from "lucide-react";
-import { createClient } from "@/lib/supabase";
 import {
   getTemplates,
   deleteTemplate,
@@ -43,15 +42,10 @@ export default function TemplatesPage() {
     setLoading(true);
     setAccountLoading(true);
 
-    const supabase = createClient();
-    const { data: userData } = await supabase.auth.getUser();
-
     const [tplJson, mediaJson, accountsJson] = await Promise.all([
       getTemplates(igAccountId),
       getMedia(igAccountId),
-      userData.user
-        ? getAccounts(userData.user.id)
-        : Promise.resolve({ accounts: [] as IgAccount[] }),
+      getAccounts(),
     ]);
 
     setTemplates(tplJson.templates || []);
