@@ -10,6 +10,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { Link } from "@astryxdesign/core/Link";
 import { Badge } from "@astryxdesign/core/Badge";
 import { ClickableCard } from "@astryxdesign/core/ClickableCard";
+import { Skeleton } from "@astryxdesign/core/Skeleton";
 
 /** "1 подключённый аккаунт" / "2 подключённых аккаунта" / "5 подключённых аккаунтов" */
 function accountsCountLabel(n: number): string {
@@ -66,28 +67,34 @@ export default function DashboardOverviewPage() {
     init();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-5xl px-8 py-8">
-        <Text color="secondary">Загрузка…</Text>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-5xl px-8 py-8">
       <Heading level={1} className="mb-6 text-2xl font-semibold">
         Главная
       </Heading>
 
-      <Heading level={2} className="break-words text-5xl font-bold">
-        Привет, {displayName}!
-      </Heading>
+      {/* Скелетон вместо голого "Загрузка…" — те же размеры, что и
+          реальный контент (52px под 5xl-заголовок, 20px под строку
+          счётчика), чтобы страница не "прыгала" при подгрузке. */}
+      {loading ? (
+        <>
+          <Skeleton width={280} height={52} radius={2} />
+          <div className="mt-3">
+            <Skeleton width={220} height={20} radius={2} />
+          </div>
+        </>
+      ) : (
+        <>
+          <Heading level={2} className="break-words text-5xl font-bold">
+            Привет, {displayName}!
+          </Heading>
 
-      <Text color="secondary" className="mt-2 block">
-        {accountsCountLabel(accounts.length)}{" "}
-        <Link href="/dashboard/accounts">Смотреть все</Link>
-      </Text>
+          <Text color="secondary" className="mt-2 block">
+            {accountsCountLabel(accounts.length)}{" "}
+            <Link href="/dashboard/accounts">Смотреть все</Link>
+          </Text>
+        </>
+      )}
 
       <div className="mt-8">
         <Heading level={3} className="mb-4 text-xl font-semibold">
@@ -101,6 +108,15 @@ export default function DashboardOverviewPage() {
           откроет визард, см. dashboard/accounts/[id]/page.tsx). Если
           аккаунтов 0 или больше одного — ведём на список: нечего/не с кем
           выбрать однозначно.
+
+          Рендерится БЕЗУСЛОВНО, не дожидаясь loading — сама вёрстка карточек
+          не зависит от аккаунтов вообще, зависит только href (см. ниже).
+          Пока accounts ещё не загрузились (дефолт — []), accounts.length
+          === 1 ложно, href безопасно falls back на /dashboard/accounts —
+          тот же код ветвления, что и после загрузки, никакого отдельного
+          "disabled"-состояния специально не заводили: клик долей секунды
+          раньше в худшем случае ведёт на список аккаунтов вместо прямого
+          перехода, это не выглядит сломанным.
 
           Секция теперь показывается ВСЕГДА, а не только пока юзер ещё
           ничего не настроил (раньше пряталась через

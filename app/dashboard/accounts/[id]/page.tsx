@@ -3,25 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import NextLink from "next/link";
-import { ShieldCheck } from "lucide-react";
-import {
-  getTemplates,
-  deleteTemplate,
-  toggleTemplateActive,
-} from "@/entities/template/api";
+import { getTemplates } from "@/entities/template/api";
 import type { Template } from "@/entities/template/types";
 import { getAccounts, getMedia } from "@/entities/ig-account/api";
 import type { IgAccount, IgMedia } from "@/entities/ig-account/types";
 import { TemplateWizard } from "@/features/template-management/TemplateWizard";
-import { Card } from "@astryxdesign/core/Card";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Heading } from "@astryxdesign/core/Heading";
-import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 import { Link } from "@astryxdesign/core/Link";
-import { Badge } from "@astryxdesign/core/Badge";
 import { Banner } from "@astryxdesign/core/Banner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { TemplateCard, TemplateCardSkeleton } from "./TemplateCard";
+
+/** Число скелетон-карточек, пока реальный список ещё грузится — реальное
+ * количество неизвестно заранее, фиксированное число проще и
+ * предсказуемее, чем пытаться его угадать. */
+const TEMPLATE_SKELETON_COUNT = 3;
 
 export default function TemplatesPage() {
   const params = useParams();
@@ -113,14 +111,19 @@ export default function TemplatesPage() {
     await loadData();
   }
 
-  async function handleDelete(templateId: string) {
-    await deleteTemplate(templateId);
-    await loadData();
+  // Точечные локальные обновления — не рефетч. Мутации (сам API-вызов)
+  // теперь живут внутри TemplateCard, сюда прилетает уже готовый
+  // результат: удалить/переключить конкретную карточку в уже загруженном
+  // массиве, не трогая остальные и не показывая общий "Загрузка…" на весь
+  // список ради одной изменившейся карточки (см. переписку).
+  function handleTemplateDeleted(templateId: string) {
+    setTemplates((prev) => prev.filter((t) => t.id !== templateId));
   }
 
-  async function handleToggleActive(tpl: Template) {
-    await toggleTemplateActive(tpl.id, !tpl.is_active);
-    await loadData();
+  function handleTemplateToggled(templateId: string, isActive: boolean) {
+    setTemplates((prev) =>
+      prev.map((t) => (t.id === templateId ? { ...t, is_active: isActive } : t)),
+    );
   }
 
   function findMedia(postId: string | null) {
@@ -158,101 +161,25 @@ export default function TemplatesPage() {
       )}
 
       {loading ? (
-        <Text color="secondary">Загрузка…</Text>
+        <Stack gap={3}>
+          {Array.from({ length: TEMPLATE_SKELETON_COUNT }).map((_, i) => (
+            <TemplateCardSkeleton key={i} index={i} />
+          ))}
+        </Stack>
       ) : templates.length === 0 ? (
         <EmptyState title="Пока нет шаблонов" description="Создайте первый." />
       ) : (
         <Stack gap={3}>
-          {templates.map((tpl) => {
-            const post = findMedia(tpl.post_id);
-            return (
-              // Статус "включён/выключен" — не Badge (см. переписку: у
-              // самого Astryx в доках Badge явный совет не вешать
-              // success-бейдж на КАЖДУЮ карточку одинаково — "reserve
-              // badges for the exceptional ones", иначе он превращается в
-              // шум, не в информацию). Вместо этого — цветная полоска
-              // слева (border-l, зелёная/нейтральная) + приглушение всей
-              // карточки (opacity), когда шаблон выключен: считывается
-              // периферийным зрением при скролле списка, не требует
-              // текста, и выключенные шаблоны физически "отступают"
-              // визуально, а не спорят за внимание с активными.
-              <Card
-                key={tpl.id}
-                padding={5}
-                className={`border-l-4 ${
-                  tpl.is_active
-                    ? "border-l-success"
-                    : "border-l-border-strong opacity-60"
-                }`}
-              >
-                <div className="mb-3 flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    {post?.thumbnail_url || post?.media_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={post.thumbnail_url || post.media_url}
-                        alt=""
-                        className="h-10 w-10 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-xs">
-                        {tpl.post_id ? "📷" : "∀"}
-                      </div>
-                    )}
-                    <div>
-                      <Text weight="medium">
-                        {tpl.post_id ? "Конкретный пост" : "Все посты"}
-                      </Text>
-                      {tpl.keyword && (
-                        <Text
-                          color="secondary"
-                          type="supporting"
-                          className="mt-0.5 block"
-                        >
-                          слово-триггер:{" "}
-                          <Text color="accent">{tpl.keyword}</Text>
-                        </Text>
-                      )}
-                    </div>
-                  </div>
-                  {tpl.require_follow_check && (
-                    <div className="shrink-0">
-                      <Badge
-                        variant="blue"
-                        icon={<ShieldCheck size={12} />}
-                        label="Подписка"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <Stack gap={1} className="mb-4">
-                  <Text color="secondary" type="supporting">
-                    Ответы на коммент:{" "}
-                    {tpl.template_replies?.map((r) => r.text).join(" · ")}
-                  </Text>
-                  <Text color="secondary" type="supporting">
-                    DM: {tpl.dm_text}
-                  </Text>
-                </Stack>
-
-                <div className="flex items-center gap-2">
-                  <Link onClick={() => openEditForm(tpl)}>Изменить</Link>
-                  <Text color="disabled">·</Text>
-                  <Link onClick={() => handleToggleActive(tpl)}>
-                    {tpl.is_active ? "Выключить" : "Включить"}
-                  </Link>
-                  <Text color="disabled">·</Text>
-                  <Link
-                    onClick={() => handleDelete(tpl.id)}
-                    className="text-error"
-                  >
-                    Удалить
-                  </Link>
-                </div>
-              </Card>
-            );
-          })}
+          {templates.map((tpl) => (
+            <TemplateCard
+              key={tpl.id}
+              template={tpl}
+              post={findMedia(tpl.post_id)}
+              onEdit={() => openEditForm(tpl)}
+              onDeleted={handleTemplateDeleted}
+              onToggled={handleTemplateToggled}
+            />
+          ))}
         </Stack>
       )}
 
