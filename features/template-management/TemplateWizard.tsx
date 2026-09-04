@@ -18,6 +18,14 @@ import type { Template, TemplateInput } from "@/entities/template/types";
 import type { IgMedia } from "@/entities/ig-account/types";
 import { PostPicker } from "./PostPicker";
 import { PhonePreview } from "./PhonePreview";
+import {
+  DM_MESSAGE_MAX_LENGTH,
+  COMMENT_REPLY_MAX_LENGTH,
+  dmMessageSchema,
+  urlSchema,
+  schemaError,
+  commentReplyLengthError,
+} from "./validation";
 
 const DEFAULT_DM_TEXT =
   "Привет! Спасибо за комментарий 🙌 Вот то, что ты искал(а): [ССЫЛКА]";
@@ -109,8 +117,32 @@ export function TemplateWizard({
   );
   const [saving, setSaving] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
+  // Показывать ли per-field ошибки (status на TextInput/TextArea) — только
+  // ПОСЛЕ первой попытки продвинуться дальше (Далее/таб/сабмит), не с
+  // первого рендера пустого обязательного поля. Once true — остаётся true
+  // до конца жизни визарда (стандартный паттерн "валидируй на первой
+  // попытке сабмита, дальше — живьём по мере правок").
+  const [hasAttempted, setHasAttempted] = useState(false);
 
   const selectedPost = media.find((m) => m.id === postId) ?? null;
+
+  // Per-field ошибки для шага 3 — считаются на каждый рендер (дёшево,
+  // визард не rerender-чувствителен), гейтятся hasAttempted (см. коммент
+  // у стейта выше). Вынесены сюда, а не инлайн в JSX — JSX внутри
+  // `{step === 3 && (...)}` не место для `const`.
+  const dmTextError = hasAttempted ? schemaError(dmMessageSchema, dmText) : null;
+  const messageIfNotFollowingError =
+    hasAttempted && requireFollowCheck
+      ? schemaError(dmMessageSchema, messageIfNotFollowing)
+      : null;
+  const messageAfterFollowError =
+    hasAttempted && requireFollowCheck
+      ? schemaError(dmMessageSchema, messageAfterFollow)
+      : null;
+  const linkButtonUrlError =
+    hasAttempted && showLinkButton && linkButtonUrl.trim()
+      ? schemaError(urlSchema, linkButtonUrl.trim())
+      : null;
 
   function updateReplyText(index: number, value: string) {
     setReplyTexts((texts) => {
@@ -141,13 +173,20 @@ export function TemplateWizard({
     if (s === 1 && keywordMode === "specific" && !keyword.trim()) {
       return "Введите хотя бы одно слово или выберите «любое слово».";
     }
-    if (s === 2 && !replyTexts.some((t) => t.trim())) {
-      return "Добавьте хотя бы один вариант ответа на комментарий.";
+    if (s === 2) {
+      if (!replyTexts.some((t) => t.trim())) {
+        return "Добавьте хотя бы один вариант ответа на комментарий.";
+      }
+      const tooLong = replyTexts.find((t) => commentReplyLengthError(t));
+      if (tooLong) {
+        return `Ответ на комментарий не длиннее ${COMMENT_REPLY_MAX_LENGTH} символов.`;
+      }
     }
     return null;
   }
 
   function goNext() {
+    setHasAttempted(true);
     setStepError(null);
     const error = validateStep(step);
     if (error) {
@@ -168,6 +207,7 @@ export function TemplateWizard({
    * повторными кликами по "Далее"; на первом же невалидном шаге
    * останавливаемся и показываем его ошибку, дальше не прыгаем. */
   function goToStep(target: WizardStep) {
+    setHasAttempted(true);
     setStepError(null);
     if (target <= step) {
       setStep(target);
@@ -193,33 +233,53 @@ export function TemplateWizard({
   }
 
   async function handleSubmit() {
+    setHasAttempted(true);
+
     const trimmedReplies = replyTexts.map((t) => t.trim()).filter(Boolean);
     if (trimmedReplies.length === 0) {
       setStepError("Добавьте хотя бы один вариант ответа на комментарий.");
       return;
     }
-    if (!dmText.trim()) {
-      setStepError("Текст приветственного DM не может быть пустым.");
+    const tooLongReply = replyTexts.find((t) => commentReplyLengthError(t));
+    if (tooLongReply) {
+      setStepError(
+        `Ответ на комментарий не длиннее ${COMMENT_REPLY_MAX_LENGTH} символов.`,
+      );
+      return;
+    }
+    const dmTextError = schemaError(dmMessageSchema, dmText);
+    if (dmTextError) {
+      setStepError(dmTextError);
       return;
     }
     if (requireFollowCheck) {
-      if (
-        !buttonTextInitial.trim() ||
-        !messageIfNotFollowing.trim() ||
-        !buttonTextFollowConfirm.trim() ||
-        !messageAfterFollow.trim()
-      ) {
+      if (!buttonTextInitial.trim() || !buttonTextFollowConfirm.trim()) {
         setStepError(
           "Заполните все поля проверки подписки — они обязательны, если тумблер включён.",
         );
         return;
       }
+      const ifNotError = schemaError(dmMessageSchema, messageIfNotFollowing);
+      if (ifNotError) {
+        setStepError(ifNotError);
+        return;
+      }
+      const afterError = schemaError(dmMessageSchema, messageAfterFollow);
+      if (afterError) {
+        setStepError(afterError);
+        return;
+      }
     }
-    if (showLinkButton && (!linkButtonText.trim() || !linkButtonUrl.trim())) {
-      setStepError(
-        "Заполните текст и ссылку кнопки — оба поля обязательны, если кнопка включена.",
-      );
-      return;
+    if (showLinkButton) {
+      if (!linkButtonText.trim()) {
+        setStepError("Заполните текст кнопки-ссылки.");
+        return;
+      }
+      const urlError = schemaError(urlSchema, linkButtonUrl.trim());
+      if (urlError) {
+        setStepError(urlError);
+        return;
+      }
     }
 
     setSaving(true);
@@ -373,7 +433,11 @@ export function TemplateWizard({
                   варианты ответа
                 </Text>
                 <Stack gap={2}>
-                  {replyTexts.map((text, i) => (
+                  {replyTexts.map((text, i) => {
+                    const lengthError = hasAttempted
+                      ? commentReplyLengthError(text)
+                      : null;
+                    return (
                     <div key={i} className="flex items-center gap-2">
                       <div className="flex-1">
                         <TextInput
@@ -381,6 +445,12 @@ export function TemplateWizard({
                           isLabelHidden
                           value={text}
                           onChange={(value) => updateReplyText(i, value)}
+                          description={`До ${COMMENT_REPLY_MAX_LENGTH} символов`}
+                          status={
+                            lengthError
+                              ? { type: "error", message: lengthError }
+                              : undefined
+                          }
                         />
                       </div>
                       {replyTexts.length > 1 && (
@@ -392,7 +462,8 @@ export function TemplateWizard({
                         />
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </Stack>
                 <div className="mt-2">
                   <Link onClick={addReplyVariant}>+ добавить вариант</Link>
@@ -445,7 +516,13 @@ export function TemplateWizard({
                   value={dmText}
                   onChange={(value) => setDmText(value)}
                   rows={4}
+                  maxLength={DM_MESSAGE_MAX_LENGTH}
                   description="Обязательное поле — отправляется в директ подписчику"
+                  status={
+                    dmTextError
+                      ? { type: "error", message: dmTextError }
+                      : undefined
+                  }
                 />
               </Card>
 
@@ -470,7 +547,13 @@ export function TemplateWizard({
                       value={messageIfNotFollowing}
                       onChange={(value) => setMessageIfNotFollowing(value)}
                       rows={3}
+                      maxLength={DM_MESSAGE_MAX_LENGTH}
                       placeholder="Похоже, ты ещё не подписан(а). Подпишись и жми кнопку ниже 👇"
+                      status={
+                        messageIfNotFollowingError
+                          ? { type: "error", message: messageIfNotFollowingError }
+                          : undefined
+                      }
                     />
                     <TextInput
                       label="Текст кнопки «Я подписался»"
@@ -482,7 +565,13 @@ export function TemplateWizard({
                       value={messageAfterFollow}
                       onChange={(value) => setMessageAfterFollow(value)}
                       rows={3}
+                      maxLength={DM_MESSAGE_MAX_LENGTH}
                       placeholder="Спасибо! Вот твоя ссылка ниже 👇"
+                      status={
+                        messageAfterFollowError
+                          ? { type: "error", message: messageAfterFollowError }
+                          : undefined
+                      }
                     />
 
                     {/* Кнопка-ссылка — своя опциональная секция, не завязана
@@ -508,6 +597,11 @@ export function TemplateWizard({
                           value={linkButtonUrl}
                           onChange={(value) => setLinkButtonUrl(value)}
                           placeholder="https://..."
+                          status={
+                            linkButtonUrlError
+                              ? { type: "error", message: linkButtonUrlError }
+                              : undefined
+                          }
                         />
                       </Stack>
                     )}
