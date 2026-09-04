@@ -100,6 +100,16 @@ export function TemplateWizard({
   onSaved,
 }: TemplateWizardProps) {
   const [step, setStep] = useState<WizardStep>(0);
+  // Шаг 0 объединяет две секции формы ("пост" и "слово-триггер"), но у
+  // превью телефона для них два РАЗНЫХ визуальных состояния ("Пост" и
+  // "Комментарии") — это состояние определяет, какое из них сейчас
+  // показано. Меняется реактивно, по фокусу на любом контроле внутри
+  // секции (см. onFocus на обёртках ниже) — не привязано к валидации/
+  // навигации, это чисто "что показать", не "куда идти". Дефолт "post" —
+  // это верхняя секция шага при первом заходе.
+  const [step0Section, setStep0Section] = useState<"post" | "keyword">(
+    "post",
+  );
   // Форма и превью телефона на десктопе (≥1024px, стандартный и
   // единственный брейкпойнт в проекте — Tailwind lg:) всегда видны рядом.
   // Ниже 1024px рядом не помещаются — переключаются табом, см. рендер
@@ -293,14 +303,26 @@ export function TemplateWizard({
     setStep(target);
   }
 
-  // Таб "Комментарии" под превью визуально накрывает ДВА шага формы (0 —
-  // пост+слово-триггер, 1 — ответ на комментарий, см. маппинг PreviewStep
-  // ниже в <PhonePreview step={...}>) — клик по нему ведёт в НАЧАЛО этой
-  // группы (шаг 0), а не в её середину. Табов теперь 2 (не 3 — "Пост"
-  // убран как отдельный, см. PhonePreview.tsx), приходит уже готовый
-  // PreviewStep (1 или 2), а не сырой индекс таба.
+  // "Пост" и "Комментарии" — оба живут на шаге 0 (пост+слово-триггер
+  // объединены), у каждого своя секция превью (см. step0Section выше).
+  // Клик по ним, пока юзер УЖЕ на шаге 0 — просто переключает секцию
+  // превью, без всякой навигации. Клик С ДРУГОГО шага (1 — ответ на
+  // комментарий, 2 — DM) — та же логика, что раньше: полноценно
+  // возвращает на шаг 0 (goToStep, с валидацией промежуточных шагов), но
+  // заодно ставит нужную секцию — иначе клик по "Пост" привёл бы назад
+  // на шаг 0, но мог бы молча показать "Комментарии", если это была
+  // последняя активная секция до ухода с шага 0.
+  // "Директ" — единственный таб, который всё ещё ведёт на реально другой
+  // шаг формы (2), тут ничего не изменилось.
   function handlePreviewTabClick(previewStep: PreviewStep) {
-    goToStep((previewStep === 1 ? 0 : 2) as WizardStep);
+    if (previewStep === 2) {
+      goToStep(2);
+      return;
+    }
+    setStep0Section(previewStep === 0 ? "post" : "keyword");
+    if (step !== 0) {
+      goToStep(0);
+    }
   }
 
   async function handleSubmit() {
@@ -431,75 +453,84 @@ export function TemplateWizard({
         >
           {step === 0 && (
             <>
-              <Heading level={2} className="mb-1 text-lg font-medium">
-                Когда кто-то комментирует
-              </Heading>
-              <Text color="secondary" className="mb-6">
-                Выберите, на какие посты будет реагировать бот.
-              </Text>
+              {/* onFocus (не onClick/onChange) — ловит фокус на любом
+                  вложенном контроле через обычное всплытие React-событий,
+                  не нужно вешать обработчик на каждый радио/пикер по
+                  отдельности. Реагирует и на клик (клик фокусирует), и на
+                  Tab с клавиатуры. */}
+              <div onFocus={() => setStep0Section("post")}>
+                <Heading level={2} className="mb-1 text-lg font-medium">
+                  Когда кто-то комментирует
+                </Heading>
+                <Text color="secondary" className="mb-6">
+                  Выберите, на какие посты будет реагировать бот.
+                </Text>
 
-              <PostPicker
-                media={media}
-                mediaError={mediaError}
-                scope={scope}
-                selectedPostId={postId}
-                onScopeChange={(s) => {
-                  setScope(s);
-                  setStepError(null);
-                }}
-                onSelectPost={(id) => {
-                  setPostId(id);
-                  setStepError(null);
-                }}
-              />
-
-              {/* Живой блокер, не гейтится hasAttempted — см. коммент у
-                  hasAnyPostConflict выше: это жёсткое правило, а не
-                  забытое поле, честнее показать сразу при выборе "любой
-                  пост", не дожидаясь клика "Далее". */}
-              {hasAnyPostConflict && (
-                <Banner
-                  status="error"
-                  title="Такой шаблон уже есть"
-                  description={ANY_POST_CONFLICT_MESSAGE}
-                  className="mt-4"
+                <PostPicker
+                  media={media}
+                  mediaError={mediaError}
+                  scope={scope}
+                  selectedPostId={postId}
+                  onScopeChange={(s) => {
+                    setScope(s);
+                    setStepError(null);
+                  }}
+                  onSelectPost={(id) => {
+                    setPostId(id);
+                    setStepError(null);
+                  }}
                 />
-              )}
 
-              {/* Раньше был отдельным шагом — объединено с выбором поста
-                  (см. коммент у WizardStep выше). mt-6, не mt-4 — это
-                  начало НОВОЙ подтемы внутри шага, не продолжение той же
-                  мысли, заслуживает больше воздуха, чем внутренние отступы
-                  одного блока. */}
-              <Text weight="medium" className="mb-3 mt-6 block">
-                И содержит слово
-              </Text>
-
-              <RadioList
-                label="Слово-триггер"
-                isLabelHidden
-                value={keywordMode}
-                onChange={(v) => setKeywordMode(v as "specific" | "any")}
-              >
-                <RadioListItem
-                  label="определённое слово или слова"
-                  value="specific"
-                />
-                <RadioListItem label="любое слово" value="any" />
-              </RadioList>
-
-              {keywordMode === "specific" && (
-                <div className="mt-4">
-                  <TextInput
-                    label="Слово-триггер"
-                    isLabelHidden
-                    value={keyword}
-                    onChange={(value) => setKeyword(value)}
-                    placeholder="например: цена, стоимость"
-                    description="Через запятую, если вариантов несколько"
+                {/* Живой блокер, не гейтится hasAttempted — см. коммент у
+                    hasAnyPostConflict выше: это жёсткое правило, а не
+                    забытое поле, честнее показать сразу при выборе "любой
+                    пост", не дожидаясь клика "Далее". */}
+                {hasAnyPostConflict && (
+                  <Banner
+                    status="error"
+                    title="Такой шаблон уже есть"
+                    description={ANY_POST_CONFLICT_MESSAGE}
+                    className="mt-4"
                   />
-                </div>
-              )}
+                )}
+              </div>
+
+              <div onFocus={() => setStep0Section("keyword")}>
+                {/* Раньше был отдельным шагом — объединено с выбором поста
+                    (см. коммент у WizardStep выше). mt-6, не mt-4 — это
+                    начало НОВОЙ подтемы внутри шага, не продолжение той же
+                    мысли, заслуживает больше воздуха, чем внутренние
+                    отступы одного блока. */}
+                <Text weight="medium" className="mb-3 mt-6 block">
+                  И содержит слово
+                </Text>
+
+                <RadioList
+                  label="Слово-триггер"
+                  isLabelHidden
+                  value={keywordMode}
+                  onChange={(v) => setKeywordMode(v as "specific" | "any")}
+                >
+                  <RadioListItem
+                    label="определённое слово или слова"
+                    value="specific"
+                  />
+                  <RadioListItem label="любое слово" value="any" />
+                </RadioList>
+
+                {keywordMode === "specific" && (
+                  <div className="mt-4">
+                    <TextInput
+                      label="Слово-триггер"
+                      isLabelHidden
+                      value={keyword}
+                      onChange={(value) => setKeyword(value)}
+                      placeholder="например: цена, стоимость"
+                      description="Через запятую, если вариантов несколько"
+                    />
+                  </div>
+                )}
+              </div>
 
               {stepError && (
                 <Text className="mt-4 text-error">{stepError}</Text>
@@ -736,14 +767,15 @@ export function TemplateWizard({
           } flex-1 items-center justify-center overflow-hidden bg-body p-10 lg:flex`}
         >
           <PhonePreview
-            // Шаг 0 (пост+слово-триггер) и шаг 1 (ответ на комментарий) —
-            // оба показывают "Комментарии" (PreviewStep 1) в мокапе, шаг 2
-            // (DM) — "Директ" (PreviewStep 2). PreviewStep 0 ("Пост")
-            // технически всё ещё существует в PhonePreview, но с тех пор,
-            // как выбор поста объединили с шагом слова-триггера, сюда
-            // больше никогда не передаётся — весь домен "когда бот
-            // реагирует" визуально живёт в "Комментарии".
-            step={step === 2 ? 2 : 1}
+            // Шаг 2 (DM) — всегда "Директ". Шаг 1 (ответ на комментарий) —
+            // всегда "Комментарии" (у него нет своих подсекций). Шаг 0
+            // (пост+слово-триггер объединены) — зависит от того, в какой
+            // секции сейчас фокус (step0Section, реактивно меняется по
+            // onFocus на обёртках секций и кликом по табам "Пост"/
+            // "Комментарии" — см. handlePreviewTabClick).
+            step={
+              step === 2 ? 2 : step === 0 && step0Section === "post" ? 0 : 1
+            }
             username={username}
             usernameLoading={usernameLoading}
             avatarUrl={avatarUrl}
