@@ -14,6 +14,13 @@ export type Template = {
   message_if_not_following?: string | null;
   button_text_follow_confirm?: string | null;
   message_after_follow?: string | null;
+  // Кнопка-ссылка под финальным сообщением ("После подписки") — открывает
+  // URL напрямую, в отличие от button_text_* выше (те триггерят следующее
+  // сообщение бота). Backend пока не хранит и не отдаёт эти поля — задача
+  // поставлена отдельным промптом (см. CLAUDE.md, "Аватарка IG-аккаунта"
+  // для примера того же паттерна с avatar_url).
+  link_button_text?: string | null;
+  link_button_url?: string | null;
 };
 
 export type TemplateInput = {
@@ -27,4 +34,8 @@ export type TemplateInput = {
   messageIfNotFollowing: string;
   buttonTextFollowConfirm: string;
   messageAfterFollow: string;
+  // НОВОЕ, backend пока не поддерживает (см. комментарий у link_button_*
+  // в Template выше) — отправляем forward-compatible, бэкенд игнорирует.
+  linkButtonText: string;
+  linkButtonUrl: string;
 };

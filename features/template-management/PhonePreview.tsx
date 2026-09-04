@@ -22,6 +22,7 @@ import {
   CircleUserRound,
   Wifi,
   Smile,
+  Link as LinkIcon,
 } from "lucide-react";
 
 export type PreviewStep = 0 | 1 | 2;
@@ -55,6 +56,18 @@ type PhonePreviewProps = {
   messageIfNotFollowing: string;
   buttonTextFollowConfirm: string;
   messageAfterFollow: string;
+  /** Кнопка-ссылка под финальным сообщением — опциональна, независимо от
+   * requireFollowCheck. Пустая строка = кнопки нет (тот же паттерн, что и
+   * остальные button-поля: пустая = выключено, не отдельный boolean). */
+  linkButtonText?: string;
+  linkButtonUrl?: string;
+  /** Клик по табу "Пост/Комментарии/Директ" под мокапом — управление шагом
+   * визарда живёт в TemplateWizard (сам PhonePreview остаётся презентационным,
+   * не знает про 4 шага формы, только про 3 экрана превью), поэтому наружу
+   * отдаётся индекс таба, а не что-либо про сами шаги. Без пропа табы
+   * остаются некликабельными (просто индикатор) — на случай будущего
+   * read-only использования этого компонента. */
+  onTabClick?: (tab: PreviewStep) => void;
 };
 
 const REACTIONS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"];
@@ -100,6 +113,9 @@ export function PhonePreview({
   messageIfNotFollowing,
   buttonTextFollowConfirm,
   messageAfterFollow,
+  linkButtonText = "",
+  linkButtonUrl = "",
+  onTabClick,
 }: PhonePreviewProps) {
   const avatarLetter = (username || "?").slice(0, 1).toUpperCase();
 
@@ -195,6 +211,8 @@ export function PhonePreview({
                   messageIfNotFollowing={messageIfNotFollowing}
                   buttonTextFollowConfirm={buttonTextFollowConfirm}
                   messageAfterFollow={messageAfterFollow}
+                  linkButtonText={linkButtonText}
+                  linkButtonUrl={linkButtonUrl}
                 />
               </motion.div>
             )}
@@ -204,16 +222,17 @@ export function PhonePreview({
 
       <div className="mt-5 flex items-center gap-1 rounded-full border border-border-strong bg-surface p-1 text-xs">
         {(["Пост", "Комментарии", "Директ"] as const).map((label, i) => (
-          <span
+          <button
             key={label}
+            type="button"
+            disabled={!onTabClick}
+            onClick={() => onTabClick?.(i as PreviewStep)}
             className={`rounded-full px-3 py-1.5 transition-colors ${
-              step === i
-                ? "bg-accent-bg text-on-accent"
-                : "text-secondary"
-            }`}
+              step === i ? "bg-accent-bg text-on-accent" : "text-secondary"
+            } ${onTabClick ? "cursor-pointer hover:text-primary" : "cursor-default"}`}
           >
             {label}
-          </span>
+          </button>
         ))}
       </div>
     </div>
@@ -578,12 +597,21 @@ function CommentsSheet({
   );
 }
 
-type DMMessage = { text: string; button: string | null };
+type LinkButton = { text: string; url: string };
+type DMMessage = {
+  text: string;
+  button: string | null;
+  /** Кнопка-ссылка — концептуально ДРУГОЙ тип, чем `button` выше: та
+   * триггерит следующее сообщение бота (см. синтетический "клик" ниже),
+   * эта открывает URL напрямую и ничего дальше не вызывает — поэтому у
+   * нее нет соответствующего "user"-элемента в таймлайне. */
+  linkButton?: LinkButton | null;
+};
 /** Один элемент отрисованной ленты DM: сообщение бота или синтетический
  * "клик по кнопке" от лица пользователя — чисто визуальная иллюстрация,
  * не связана с реальной логикой проверки подписки. */
 type DMTimelineItem =
-  | { kind: "bot"; text: string; button: string | null }
+  | { kind: "bot"; text: string; button: string | null; linkButton?: LinkButton | null }
   | { kind: "user"; text: string };
 
 function DMScreen({
@@ -597,6 +625,8 @@ function DMScreen({
   messageIfNotFollowing,
   buttonTextFollowConfirm,
   messageAfterFollow,
+  linkButtonText,
+  linkButtonUrl,
 }: {
   username: string;
   usernameLoading?: boolean;
@@ -608,12 +638,21 @@ function DMScreen({
   messageIfNotFollowing: string;
   buttonTextFollowConfirm: string;
   messageAfterFollow: string;
+  linkButtonText?: string;
+  linkButtonUrl?: string;
 }) {
+  // Кнопка-ссылка живёт только на финальном сообщении ("После подписки") —
+  // см. задачу, там же и на референсе-скриншоте она появляется.
+  const finalLinkButton: LinkButton | null =
+    linkButtonText?.trim() && linkButtonUrl?.trim()
+      ? { text: linkButtonText.trim(), url: linkButtonUrl.trim() }
+      : null;
+
   const messages: DMMessage[] = requireFollowCheck
     ? [
         { text: dmText, button: buttonTextInitial },
         { text: messageIfNotFollowing, button: buttonTextFollowConfirm },
-        { text: messageAfterFollow, button: null },
+        { text: messageAfterFollow, button: null, linkButton: finalLinkButton },
       ]
     : [{ text: dmText, button: null }];
 
@@ -623,7 +662,12 @@ function DMScreen({
   const timeline: DMTimelineItem[] = [];
   for (const m of messages) {
     if (!m.text.trim()) continue;
-    timeline.push({ kind: "bot", text: m.text, button: m.button });
+    timeline.push({
+      kind: "bot",
+      text: m.text,
+      button: m.button,
+      linkButton: m.linkButton,
+    });
     if (m.button && m.button.trim()) {
       timeline.push({ kind: "user", text: m.button.trim() });
     }
@@ -684,6 +728,12 @@ function DMScreen({
                   {item.button && (
                     <div className="border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium">
                       {item.button}
+                    </div>
+                  )}
+                  {item.linkButton && (
+                    <div className="flex items-center justify-center gap-1.5 border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium">
+                      <LinkIcon size={13} className="shrink-0" />
+                      {item.linkButton.text}
                     </div>
                   )}
                 </div>

@@ -24,6 +24,13 @@ const DEFAULT_DM_TEXT =
 const DEFAULT_REPLY_TEXT = "Спасибо! Ссылку отправил тебе в директ 🚀";
 const DEFAULT_BUTTON_TEXT_INITIAL = "Получить";
 const DEFAULT_BUTTON_TEXT_FOLLOW_CONFIRM = "Я подписался";
+const DEFAULT_MESSAGE_IF_NOT_FOLLOWING =
+  "Похоже, ты ещё не подписан(а). Подпишись и жми кнопку ниже 👇";
+// Без "[ССЫЛКА]"-токена внутри текста — в отличие от DEFAULT_DM_TEXT выше,
+// у финального сообщения теперь есть настоящая кнопка-ссылка под текстом
+// (см. linkButtonText/linkButtonUrl), токен в самом тексте стал бы
+// дублирующим и путающим.
+const DEFAULT_MESSAGE_AFTER_FOLLOW = "Спасибо! Вот твоя ссылка ниже 👇";
 
 type WizardStep = 0 | 1 | 2 | 3;
 
@@ -74,14 +81,31 @@ export function TemplateWizard({
     editingTemplate?.button_text_initial || DEFAULT_BUTTON_TEXT_INITIAL,
   );
   const [messageIfNotFollowing, setMessageIfNotFollowing] = useState(
-    editingTemplate?.message_if_not_following ?? "",
+    editingTemplate?.message_if_not_following ||
+      DEFAULT_MESSAGE_IF_NOT_FOLLOWING,
   );
   const [buttonTextFollowConfirm, setButtonTextFollowConfirm] = useState(
     editingTemplate?.button_text_follow_confirm ||
       DEFAULT_BUTTON_TEXT_FOLLOW_CONFIRM,
   );
   const [messageAfterFollow, setMessageAfterFollow] = useState(
-    editingTemplate?.message_after_follow ?? "",
+    editingTemplate?.message_after_follow || DEFAULT_MESSAGE_AFTER_FOLLOW,
+  );
+  // Кнопка-ссылка под финальным сообщением — своя опциональная секция,
+  // независимая от requireFollowCheck-переключателя выше по смыслу (это
+  // "как оформить последний шаг", а не "включена ли вообще проверка
+  // подписки"). showLinkButton — чисто UI-состояние (сам факт "показывать
+  // ли поля"), на бэкенд не уходит — при сохранении наличие кнопки
+  // определяется по непустым linkButtonText/linkButtonUrl, тем же
+  // паттерном, что и остальные button-поля в этом файле.
+  const [showLinkButton, setShowLinkButton] = useState(
+    Boolean(editingTemplate?.link_button_text || editingTemplate?.link_button_url),
+  );
+  const [linkButtonText, setLinkButtonText] = useState(
+    editingTemplate?.link_button_text ?? "",
+  );
+  const [linkButtonUrl, setLinkButtonUrl] = useState(
+    editingTemplate?.link_button_url ?? "",
   );
   const [saving, setSaving] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
@@ -104,37 +128,68 @@ export function TemplateWizard({
     setReplyTexts((texts) => texts.filter((_, i) => i !== index));
   }
 
+  // Валидация конкретного шага, вынесена из goNext() — переиспользуется и
+  // кликом по табу под превью (goToStep), который может перепрыгнуть сразу
+  // через несколько шагов и должен проверить каждый промежуточный, как
+  // будто по нему последовательно жали "Далее". Шаг 3 не валидируется тут
+  // — у него нет "следующего", это конец формы (там своя проверка в
+  // handleSubmit).
+  function validateStep(s: WizardStep): string | null {
+    if (s === 0 && scope === "post" && !postId) {
+      return "Выберите пост или переключитесь на «любой пост».";
+    }
+    if (s === 1 && keywordMode === "specific" && !keyword.trim()) {
+      return "Введите хотя бы одно слово или выберите «любое слово».";
+    }
+    if (s === 2 && !replyTexts.some((t) => t.trim())) {
+      return "Добавьте хотя бы один вариант ответа на комментарий.";
+    }
+    return null;
+  }
+
   function goNext() {
     setStepError(null);
-    if (step === 0) {
-      if (scope === "post" && !postId) {
-        setStepError("Выберите пост или переключитесь на «любой пост».");
-        return;
-      }
-      setStep(1);
+    const error = validateStep(step);
+    if (error) {
+      setStepError(error);
       return;
     }
-    if (step === 1) {
-      if (keywordMode === "specific" && !keyword.trim()) {
-        setStepError("Введите хотя бы одно слово или выберите «любое слово».");
-        return;
-      }
-      setStep(2);
-      return;
-    }
-    if (step === 2) {
-      const hasReply = replyTexts.some((t) => t.trim());
-      if (!hasReply) {
-        setStepError("Добавьте хотя бы один вариант ответа на комментарий.");
-        return;
-      }
-      setStep(3);
-    }
+    if (step < 3) setStep((step + 1) as WizardStep);
   }
 
   function goBack() {
     setStepError(null);
     setStep((s) => (s === 0 ? 0 : ((s - 1) as WizardStep)));
+  }
+
+  /** Клик по табу "Пост/Комментарии/Директ" под превью — назад пускаем
+   * свободно (шаг уже был пройден), вперёд — только через валидацию
+   * каждого промежуточного шага по очереди, тем же способом, что и
+   * повторными кликами по "Далее"; на первом же невалидном шаге
+   * останавливаемся и показываем его ошибку, дальше не прыгаем. */
+  function goToStep(target: WizardStep) {
+    setStepError(null);
+    if (target <= step) {
+      setStep(target);
+      return;
+    }
+    for (let s = step; s < target; s++) {
+      const error = validateStep(s as WizardStep);
+      if (error) {
+        setStep(s as WizardStep);
+        setStepError(error);
+        return;
+      }
+    }
+    setStep(target);
+  }
+
+  // Таб "Комментарии" под превью визуально накрывает ДВА шага формы (1 —
+  // слово-триггер, 2 — ответ на комментарий, см. маппинг PreviewStep ниже
+  // в <PhonePreview step={...}>) — клик по нему ведёт в НАЧАЛО этой группы
+  // (шаг 1), а не в её середину.
+  function handlePreviewTabClick(tab: 0 | 1 | 2) {
+    goToStep((tab === 0 ? 0 : tab === 1 ? 1 : 3) as WizardStep);
   }
 
   async function handleSubmit() {
@@ -160,6 +215,12 @@ export function TemplateWizard({
         return;
       }
     }
+    if (showLinkButton && (!linkButtonText.trim() || !linkButtonUrl.trim())) {
+      setStepError(
+        "Заполните текст и ссылку кнопки — оба поля обязательны, если кнопка включена.",
+      );
+      return;
+    }
 
     setSaving(true);
     setStepError(null);
@@ -178,6 +239,8 @@ export function TemplateWizard({
         ? buttonTextFollowConfirm.trim()
         : "",
       messageAfterFollow: requireFollowCheck ? messageAfterFollow.trim() : "",
+      linkButtonText: showLinkButton ? linkButtonText.trim() : "",
+      linkButtonUrl: showLinkButton ? linkButtonUrl.trim() : "",
     };
 
     try {
@@ -419,8 +482,35 @@ export function TemplateWizard({
                       value={messageAfterFollow}
                       onChange={(value) => setMessageAfterFollow(value)}
                       rows={3}
-                      placeholder="Спасибо! Вот твоя ссылка: [ССЫЛКА]"
+                      placeholder="Спасибо! Вот твоя ссылка ниже 👇"
                     />
+
+                    {/* Кнопка-ссылка — своя опциональная секция, не завязана
+                        жёстко на "финальное сообщение обязано её иметь":
+                        не каждый юзер хочет вести на внешний урл именно тут. */}
+                    <Switch
+                      label="Добавить кнопку со ссылкой"
+                      description="Откроет указанный урл — в отличие от кнопок выше, не отправляет следующее сообщение"
+                      value={showLinkButton}
+                      onChange={(checked) => setShowLinkButton(checked)}
+                      labelSpacing="spread"
+                    />
+                    {showLinkButton && (
+                      <Stack gap={3} className="border-t border-border pt-3">
+                        <TextInput
+                          label="Текст кнопки"
+                          value={linkButtonText}
+                          onChange={(value) => setLinkButtonText(value)}
+                          placeholder="Смотреть уроки"
+                        />
+                        <TextInput
+                          label="Ссылка"
+                          value={linkButtonUrl}
+                          onChange={(value) => setLinkButtonUrl(value)}
+                          placeholder="https://..."
+                        />
+                      </Stack>
+                    )}
                   </Stack>
                 )}
               </Card>
@@ -472,6 +562,9 @@ export function TemplateWizard({
             messageIfNotFollowing={messageIfNotFollowing}
             buttonTextFollowConfirm={buttonTextFollowConfirm}
             messageAfterFollow={messageAfterFollow}
+            linkButtonText={showLinkButton ? linkButtonText : ""}
+            linkButtonUrl={showLinkButton ? linkButtonUrl : ""}
+            onTabClick={handlePreviewTabClick}
           />
         </div>
       </div>
