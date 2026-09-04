@@ -1,8 +1,41 @@
 export type TemplateReply = { id?: string; text: string };
 export type TemplateLink = { text: string; url: string };
 
+/** Аналитика шаблона — воронка из 3 счётчиков (см. entities/template/
+ * types.ts комментарий у самого поля ниже для деталей). Один плоский
+ * объект, не 3 отдельных поля на Template — сразу видно, что это цельный
+ * "пакет" данных с бэкенда, который либо есть целиком, либо отсутствует
+ * целиком (шаблон ещё не поддерживается аналитикой), а не частично
+ * разъехавшиеся отдельные поля. */
+export type TemplateAnalytics = {
+  /** Сколько раз сработал триггер (совпал комментарий/сообщение). */
+  started: number;
+  /** Сколько раз было отправлено сообщение, СОДЕРЖАЩЕЕ ссылку (не любое
+   * сообщение автоматизации — см. CLAUDE.md, обсуждение "Sends" vs
+   * отдельный counter для CTR). 0, если у шаблона вообще нет
+   * настроенной ссылки. */
+  linkSent: number;
+  /** Сколько раз по этой ссылке кликнули. Instagram НЕ даёт это
+   * бесплатно (url-кнопки не шлют вебхук, только postback-кнопки —
+   * задокументированный факт, не наше предположение) — считается через
+   * собственный редирект-сервис бэкенда, см. промпт. */
+  linkClicked: number;
+};
+
 export type Template = {
   id: string;
+  // Название шаблона — НАСТОЯЩЕЕ поле (не forward-compatible заглушка,
+  // как большинство остального ниже): юзер сам вводит при создании,
+  // видит на странице деталей автоматизации. Опционально на типе (пока
+  // backend не всегда его отдаёт — например, старые шаблоны, созданные
+  // до появления этого поля) — компоненты, которые его показывают, сами
+  // подставляют осмысленный дефолт при отсутствии.
+  name?: string | null;
+  // Аналитика — НОВОЕ, backend пока не хранит и не отдаёт (форвард-
+  // совместимо, промпт см. память проекта). `undefined`/`null` — ещё не
+  // поддерживается, не "все нули": страница деталей различает эти
+  // состояния (см. TemplateAnalyticsSection.tsx).
+  analytics?: TemplateAnalytics | null;
   // Дискриминатор типа автоматизации — НОВОЕ, backend пока не хранит и не
   // отдаёт (тот же forward-compatible паттерн, что и остальные НОВЫЕ поля
   // ниже). Отсутствует/`null` у уже существующих шаблонов — трактуем как
@@ -62,6 +95,8 @@ type FollowCheckFields = {
 
 export type CommentTemplateInput = FollowCheckFields & {
   type: "comment";
+  // НОВОЕ настоящее поле — см. комментарий у `name` в Template выше.
+  name: string;
   postId: string | null;
   keyword: string | null;
   exactMatch: boolean;
@@ -75,6 +110,7 @@ export type CommentTemplateInput = FollowCheckFields & {
 
 export type DmTemplateInput = FollowCheckFields & {
   type: "dm";
+  name: string;
   keyword: string | null;
   exactMatch: boolean;
   dmText: string;

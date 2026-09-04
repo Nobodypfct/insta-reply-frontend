@@ -64,6 +64,11 @@ const DEFAULT_MESSAGE_AFTER_FOLLOW = "Спасибо! Вот твоя ссылк
 // поля, которое выглядит как забытое.
 const DEFAULT_LINK_BUTTON_TEXT = "Смотреть уроки";
 const DEFAULT_LINK_BUTTON_URL = "https://example.com";
+// Название шаблона — настоящее поле (не forward-compatible заглушка, см.
+// entities/template/types.ts), но дефолт для НОВОГО шаблона всё равно
+// заполнен примером, не пустой — тот же принцип, что и у остальных полей
+// этого файла: юзеру есть с чего стартовать, редактируется свободно.
+const DEFAULT_TEMPLATE_NAME = "Автоответ на комментарии";
 // DEFAULT_KEYWORD_TAG/emptyKeywordSource/keywordStringToTags/
 // keywordTagsToString — переехали в ./keywordTags.ts (общие с
 // DmTemplateWizard, см. импорт выше).
@@ -145,6 +150,12 @@ export function CommentTemplateWizard({
   // Ниже 1024px рядом не помещаются — переключаются табом, см. рендер
   // ниже (SegmentedControl, видим только на мобилке через lg:hidden).
   const [mobileView, setMobileView] = useState<"form" | "preview">("form");
+  // Название шаблона — не завязано на конкретный шаг (свойство всей
+  // автоматизации, не одного экрана формы), поэтому живёт на шаге 0
+  // первым полем, но по смыслу это не часть "Когда кто-то комментирует".
+  const [name, setName] = useState(
+    editingTemplate?.name || DEFAULT_TEMPLATE_NAME,
+  );
   const [scope, setScope] = useState<"post" | "any">(
     editingTemplate?.post_id ? "post" : "any",
   );
@@ -285,6 +296,9 @@ export function CommentTemplateWizard({
   // своя проверка в handleSubmit).
   function validateStep(s: WizardStep): string | null {
     if (s === 0) {
+      if (!name.trim()) {
+        return "Введите название шаблона.";
+      }
       if (scope === "post" && !postId) {
         return "Выберите пост или переключитесь на «любой пост».";
       }
@@ -427,6 +441,7 @@ export function CommentTemplateWizard({
 
     const body: CommentTemplateInput = {
       type: "comment",
+      name: name.trim(),
       postId: scope === "any" ? null : postId,
       keyword:
         keywordMode === "any"
@@ -511,6 +526,17 @@ export function CommentTemplateWizard({
         >
           {step === 0 && (
             <>
+              {/* Название — свойство всей автоматизации, не конкретной
+                  секции шага 0, поэтому вне onFocus-обёрток ниже (фокус
+                  здесь не должен переключать превью на "Пост"/
+                  "Комментарии" — см. step0Section). */}
+              <TextInput
+                label="Название шаблона"
+                value={name}
+                onChange={(value) => setName(value)}
+                className="mb-6"
+              />
+
               {/* onFocus (не onClick/onChange) — ловит фокус на любом
                   вложенном контроле через обычное всплытие React-событий,
                   не нужно вешать обработчик на каждый радио/пикер по

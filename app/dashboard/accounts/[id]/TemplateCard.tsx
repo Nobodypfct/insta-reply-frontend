@@ -31,13 +31,13 @@ import { Skeleton } from "@astryxdesign/core/Skeleton";
 export function TemplateCard({
   template: tpl,
   post,
-  editHref,
+  detailHref,
   onDeleted,
   onToggled,
 }: {
   template: Template;
   post: Pick<IgMedia, "thumbnail_url" | "media_url"> | undefined;
-  editHref: string;
+  detailHref: string;
   onDeleted: (templateId: string) => void;
   onToggled: (templateId: string, isActive: boolean) => void;
 }) {
@@ -47,6 +47,15 @@ export function TemplateCard({
   // дискриминатора (см. entities/template/types.ts) — трактуем как
   // "comment", единственный тип, который вообще существовал раньше.
   const isDm = tpl.type === "dm";
+  const typeLabel = isDm
+    ? "Ответ в директ"
+    : tpl.post_id
+      ? "Конкретный пост"
+      : "Все посты";
+  // Отсутствующее название — старые шаблоны, созданные до появления поля
+  // (см. entities/template/types.ts) — честный дефолт по типу, не пустая
+  // строка/undefined на карточке.
+  const displayName = tpl.name?.trim() || typeLabel;
 
   async function handleDelete() {
     setIsDeleting(true);
@@ -87,13 +96,12 @@ export function TemplateCard({
               {tpl.post_id ? "📷" : "∀"}
             </div>
           )}
-          <div>
-            <Text weight="medium">
-              {isDm
-                ? "Ответ в директ"
-                : tpl.post_id
-                  ? "Конкретный пост"
-                  : "Все посты"}
+          <div className="min-w-0">
+            <Text weight="medium" className="block truncate">
+              {displayName}
+            </Text>
+            <Text color="secondary" type="supporting" className="mt-0.5 block">
+              {typeLabel}
             </Text>
             {tpl.keyword && (
               <Text color="secondary" type="supporting" className="mt-0.5 block">
@@ -169,8 +177,12 @@ export function TemplateCard({
       )}
 
       <div className="flex items-center gap-2">
-        <Link href={editHref} as={NextLink} isDisabled={isDeleting}>
-          Изменить
+        {/* Ведёт на страницу деталей (метрики + превью), не сразу в форму
+            редактирования — там уже своя кнопка "Редактировать" (см.
+            app/dashboard/accounts/[id]/templates/[templateId]/page.tsx).
+            Поэтому "Открыть", не "Изменить" — точнее описывает переход. */}
+        <Link href={detailHref} as={NextLink} isDisabled={isDeleting}>
+          Открыть
         </Link>
         <Text color="disabled">·</Text>
         <Link onClick={handleDelete} isDisabled={isDeleting} className="text-error">

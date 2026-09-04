@@ -42,6 +42,10 @@ const DEFAULT_BUTTON_TEXT_FOLLOW_CONFIRM = "Я подписался";
 const DEFAULT_MESSAGE_IF_NOT_FOLLOWING =
   "Похоже, ты ещё не подписан(а). Подпишись и жми кнопку ниже 👇";
 const DEFAULT_MESSAGE_AFTER_FOLLOW = "Спасибо! Вот твоя ссылка ниже 👇";
+// Настоящее поле (не forward-compatible заглушка — см. entities/template/
+// types.ts), дефолт для НОВОГО шаблона всё же заполнен примером, тот же
+// принцип, что и у CommentTemplateWizard.
+const DEFAULT_TEMPLATE_NAME = "Ответ в директ";
 
 type DmTemplateWizardProps = {
   igAccountId: string;
@@ -75,6 +79,9 @@ export function DmTemplateWizard({
   onSaved,
 }: DmTemplateWizardProps) {
   const [mobileView, setMobileView] = useState<"form" | "preview">("form");
+  const [name, setName] = useState(
+    editingTemplate?.name || DEFAULT_TEMPLATE_NAME,
+  );
   const [keywordMode, setKeywordMode] = useState<"specific" | "any">(
     editingTemplate?.keyword ? "specific" : "any",
   );
@@ -166,6 +173,10 @@ export function DmTemplateWizard({
     setHasAttempted(true);
     setFormError(null);
 
+    if (!name.trim()) {
+      setFormError("Введите название шаблона.");
+      return;
+    }
     if (keywordMode === "specific" && keywordTags.length === 0) {
       setFormError("Добавьте хотя бы одно слово или выберите «любое слово».");
       return;
@@ -212,6 +223,7 @@ export function DmTemplateWizard({
 
     const body: DmTemplateInput = {
       type: "dm",
+      name: name.trim(),
       keyword:
         keywordMode === "any"
           ? null
@@ -277,6 +289,13 @@ export function DmTemplateWizard({
             mobileView === "preview" ? "hidden" : "block"
           } w-full max-w-[420px] shrink-0 overflow-y-auto px-6 py-8 lg:block lg:border-r lg:border-border lg:px-8`}
         >
+          <TextInput
+            label="Название шаблона"
+            value={name}
+            onChange={(value) => setName(value)}
+            className="mb-6"
+          />
+
           <Heading level={2} className="mb-1 text-lg font-medium">
             Когда вам пишут в директ
           </Heading>

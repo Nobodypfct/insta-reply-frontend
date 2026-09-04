@@ -141,7 +141,7 @@ export default function TemplatesPage() {
               key={tpl.id}
               template={tpl}
               post={findMedia(tpl.post_id)}
-              editHref={`/dashboard/accounts/${igAccountId}/templates/${tpl.id}/edit`}
+              detailHref={`/dashboard/accounts/${igAccountId}/templates/${tpl.id}`}
               onDeleted={handleTemplateDeleted}
               onToggled={handleTemplateToggled}
             />
