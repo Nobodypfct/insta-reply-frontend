@@ -23,7 +23,7 @@ import { ApiError } from "@/shared/api/client";
 import type { Template, TemplateInput } from "@/entities/template/types";
 import type { IgMedia } from "@/entities/ig-account/types";
 import { PostPicker } from "./PostPicker";
-import { PhonePreview } from "./PhonePreview";
+import { PhonePreview, type PreviewStep } from "./PhonePreview";
 import {
   DM_MESSAGE_MAX_LENGTH,
   COMMENT_REPLY_MAX_LENGTH,
@@ -60,7 +60,12 @@ const ANY_POST_CONFLICT_MESSAGE =
   "быть только один такой шаблон — отключите или удалите существующий, " +
   "чтобы создать новый.";
 
-type WizardStep = 0 | 1 | 2 | 3;
+// Раньше было 4 шага — "выбор поста" и "слово-триггер" были отдельными
+// шагами 0/1. Объединены в один шаг 0 (см. переписку: концептуально это
+// одно условие "когда бот реагирует", а не два последовательных решения)
+// — по прямому запросу, можно пересмотреть, если окажется, что шаг стал
+// перегруженным.
+type WizardStep = 0 | 1 | 2;
 
 type TemplateWizardProps = {
   igAccountId: string;
@@ -181,10 +186,10 @@ export function TemplateWizard({
         (t) => t.post_id === null && t.id !== editingTemplate?.id,
       ));
 
-  // Per-field ошибки для шага 3 — считаются на каждый рендер (дёшево,
-  // визард не rerender-чувствителен), гейтятся hasAttempted (см. коммент
-  // у стейта выше). Вынесены сюда, а не инлайн в JSX — JSX внутри
-  // `{step === 3 && (...)}` не место для `const`.
+  // Per-field ошибки для последнего шага (DM) — считаются на каждый
+  // рендер (дёшево, визард не rerender-чувствителен), гейтятся
+  // hasAttempted (см. коммент у стейта выше). Вынесены сюда, а не инлайн
+  // в JSX — JSX внутри `{step === 2 && (...)}` не место для `const`.
   const dmTextError = hasAttempted ? schemaError(dmMessageSchema, dmText) : null;
   const messageIfNotFollowingError =
     hasAttempted && requireFollowCheck
@@ -218,24 +223,26 @@ export function TemplateWizard({
   // Валидация конкретного шага, вынесена из goNext() — переиспользуется и
   // кликом по табу под превью (goToStep), который может перепрыгнуть сразу
   // через несколько шагов и должен проверить каждый промежуточный, как
-  // будто по нему последовательно жали "Далее". Шаг 3 не валидируется тут
-  // — у него нет "следующего", это конец формы (там своя проверка в
-  // handleSubmit).
+  // будто по нему последовательно жали "Далее". Последний шаг не
+  // валидируется тут — у него нет "следующего", это конец формы (там
+  // своя проверка в handleSubmit).
   function validateStep(s: WizardStep): string | null {
-    if (s === 0 && scope === "post" && !postId) {
-      return "Выберите пост или переключитесь на «любой пост».";
+    if (s === 0) {
+      if (scope === "post" && !postId) {
+        return "Выберите пост или переключитесь на «любой пост».";
+      }
+      // Текст конфликта уже виден живьём в Banner'е на этом шаге (см.
+      // hasAnyPostConflict) — тут короткая ДРУГАЯ формулировка, просто
+      // чтобы блокировать переход, не дублируя слово в слово то, что уже
+      // написано в баннере выше.
+      if (hasAnyPostConflict) {
+        return "Нельзя продолжить, пока не решён конфликт шаблонов выше.";
+      }
+      if (keywordMode === "specific" && !keyword.trim()) {
+        return "Введите хотя бы одно слово или выберите «любое слово».";
+      }
     }
-    // Текст конфликта уже виден живьём в Banner'е на шаге 0 (см.
-    // hasAnyPostConflict) — тут короткая ДРУГАЯ формулировка, просто чтобы
-    // блокировать переход, не дублируя слово в слово то, что уже написано
-    // в баннере прямо над этой ошибкой.
-    if (s === 0 && hasAnyPostConflict) {
-      return "Нельзя продолжить, пока не решён конфликт шаблонов выше.";
-    }
-    if (s === 1 && keywordMode === "specific" && !keyword.trim()) {
-      return "Введите хотя бы одно слово или выберите «любое слово».";
-    }
-    if (s === 2) {
+    if (s === 1) {
       if (!replyTexts.some((t) => t.trim())) {
         return "Добавьте хотя бы один вариант ответа на комментарий.";
       }
@@ -255,7 +262,7 @@ export function TemplateWizard({
       setStepError(error);
       return;
     }
-    if (step < 3) setStep((step + 1) as WizardStep);
+    if (step < 2) setStep((step + 1) as WizardStep);
   }
 
   function goBack() {
@@ -286,12 +293,14 @@ export function TemplateWizard({
     setStep(target);
   }
 
-  // Таб "Комментарии" под превью визуально накрывает ДВА шага формы (1 —
-  // слово-триггер, 2 — ответ на комментарий, см. маппинг PreviewStep ниже
-  // в <PhonePreview step={...}>) — клик по нему ведёт в НАЧАЛО этой группы
-  // (шаг 1), а не в её середину.
-  function handlePreviewTabClick(tab: 0 | 1 | 2) {
-    goToStep((tab === 0 ? 0 : tab === 1 ? 1 : 3) as WizardStep);
+  // Таб "Комментарии" под превью визуально накрывает ДВА шага формы (0 —
+  // пост+слово-триггер, 1 — ответ на комментарий, см. маппинг PreviewStep
+  // ниже в <PhonePreview step={...}>) — клик по нему ведёт в НАЧАЛО этой
+  // группы (шаг 0), а не в её середину. Табов теперь 2 (не 3 — "Пост"
+  // убран как отдельный, см. PhonePreview.tsx), приходит уже готовый
+  // PreviewStep (1 или 2), а не сырой индекс таба.
+  function handlePreviewTabClick(previewStep: PreviewStep) {
+    goToStep((previewStep === 1 ? 0 : 2) as WizardStep);
   }
 
   async function handleSubmit() {
@@ -396,7 +405,7 @@ export function TemplateWizard({
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <Link onClick={onClose}>← Отмена</Link>
         <Text color="secondary" type="supporting">
-          Шаг {step + 1} из 4
+          Шаг {step + 1} из 3
         </Text>
       </header>
 
@@ -457,29 +466,13 @@ export function TemplateWizard({
                 />
               )}
 
-              {stepError && (
-                <Text className="mt-4 text-error">{stepError}</Text>
-              )}
-
-              <Button
-                width="100%"
-                variant="primary"
-                label="Далее"
-                onClick={goNext}
-                isDisabled={hasAnyPostConflict}
-                className="mt-6"
-              />
-            </>
-          )}
-
-          {step === 1 && (
-            <>
-              <Link onClick={goBack}>← Назад</Link>
-              <Heading level={2} className="mb-1 mt-4 text-lg font-medium">
-                И этот комментарий содержит
-              </Heading>
-              <Text color="secondary" className="mb-6">
-                Слово-триггер, чтобы бот отвечал только на нужные комментарии.
+              {/* Раньше был отдельным шагом — объединено с выбором поста
+                  (см. коммент у WizardStep выше). mt-6, не mt-4 — это
+                  начало НОВОЙ подтемы внутри шага, не продолжение той же
+                  мысли, заслуживает больше воздуха, чем внутренние отступы
+                  одного блока. */}
+              <Text weight="medium" className="mb-3 mt-6 block">
+                И содержит слово
               </Text>
 
               <RadioList
@@ -496,7 +489,7 @@ export function TemplateWizard({
               </RadioList>
 
               {keywordMode === "specific" && (
-                <div className="mt-3">
+                <div className="mt-4">
                   <TextInput
                     label="Слово-триггер"
                     isLabelHidden
@@ -517,12 +510,13 @@ export function TemplateWizard({
                 variant="primary"
                 label="Далее"
                 onClick={goNext}
+                isDisabled={hasAnyPostConflict}
                 className="mt-6"
               />
             </>
           )}
 
-          {step === 2 && (
+          {step === 1 && (
             <>
               <Link onClick={goBack}>← Назад</Link>
               <Heading level={2} className="mb-1 mt-4 text-lg font-medium">
@@ -589,7 +583,7 @@ export function TemplateWizard({
             </>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <>
               <Link onClick={goBack}>← Назад</Link>
               <Heading level={2} className="mb-1 mt-4 text-lg font-medium">
@@ -742,7 +736,14 @@ export function TemplateWizard({
           } flex-1 items-center justify-center overflow-hidden bg-body p-10 lg:flex`}
         >
           <PhonePreview
-            step={step === 0 ? 0 : step === 3 ? 2 : 1}
+            // Шаг 0 (пост+слово-триггер) и шаг 1 (ответ на комментарий) —
+            // оба показывают "Комментарии" (PreviewStep 1) в мокапе, шаг 2
+            // (DM) — "Директ" (PreviewStep 2). PreviewStep 0 ("Пост")
+            // технически всё ещё существует в PhonePreview, но с тех пор,
+            // как выбор поста объединили с шагом слова-триггера, сюда
+            // больше никогда не передаётся — весь домен "когда бот
+            // реагирует" визуально живёт в "Комментарии".
+            step={step === 2 ? 2 : 1}
             username={username}
             usernameLoading={usernameLoading}
             avatarUrl={avatarUrl}
@@ -758,7 +759,7 @@ export function TemplateWizard({
             keyword={keyword}
             keywordMode={keywordMode}
             dmText={dmText}
-            showReply={step === 2}
+            showReply={step === 1}
             replyText={replyTexts.find((t) => t.trim())?.trim() ?? ""}
             requireFollowCheck={requireFollowCheck}
             buttonTextInitial={buttonTextInitial}

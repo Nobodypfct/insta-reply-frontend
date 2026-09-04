@@ -119,9 +119,13 @@ export function PhonePreview({
 }: PhonePreviewProps) {
   const avatarLetter = (username || "?").slice(0, 1).toUpperCase();
 
+  // Раньше было "А расскажите подробнее? {слово}" — убрана обрамляющая
+  // фраза по прямому запросу, показываем ровно то, что юзер ввёл в поле
+  // слова-триггера, без наших домыслов о том, как выглядел бы реальный
+  // комментарий.
   const commentText =
     keywordMode === "specific" && keyword.trim()
-      ? `А расскажите подробнее? ${keyword.split(",")[0].trim()}`
+      ? keyword.split(",")[0].trim()
       : "Очень круто, хочу себе такое же 🔥";
 
   return (
@@ -220,16 +224,34 @@ export function PhonePreview({
         </div>
       </div>
 
+      {/*
+        Раньше было 3 таба (Пост/Комментарии/Директ) — "Пост" убран: после
+        объединения шагов "выбор поста" и "слово-триггер" в один шаг формы
+        (см. TemplateWizard.tsx) отдельного шага под голый пост-экран
+        больше не существует, весь этот шаг целиком живёт в домене
+        "Комментарии" (шторка комментариев видна на всём его протяжении,
+        меняется только миниатюра поста за ней). PreviewStep 0 ("Пост")
+        поэтому больше НЕ достижим кликом по табам — компонент технически
+        всё ещё его поддерживает (см. AnimatePresence выше), просто эта
+        точка входа с этой стороны больше не используется.
+      */}
       <div className="mt-5 flex items-center gap-1 rounded-full border border-border-strong bg-surface p-1 text-xs">
-        {(["Пост", "Комментарии", "Директ"] as const).map((label, i) => (
+        {(
+          [
+            { label: "Комментарии", previewStep: 1 },
+            { label: "Директ", previewStep: 2 },
+          ] as const
+        ).map(({ label, previewStep }) => (
           <button
             key={label}
             type="button"
             disabled={!onTabClick}
-            onClick={() => onTabClick?.(i as PreviewStep)}
+            onClick={() => onTabClick?.(previewStep)}
             className={`rounded-full px-3 py-1.5 transition-colors ${
-              step === i ? "bg-accent-bg text-on-accent" : "text-secondary"
-            } ${onTabClick ? "cursor-pointer hover:text-primary" : "cursor-default"}`}
+              step === previewStep
+                ? "bg-accent-bg text-on-accent"
+                : `text-secondary ${onTabClick ? "hover:text-primary" : ""}`
+            } ${onTabClick ? "cursor-pointer" : "cursor-default"}`}
           >
             {label}
           </button>
