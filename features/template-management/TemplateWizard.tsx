@@ -13,7 +13,9 @@ import { Link } from "@astryxdesign/core/Link";
 import { Card } from "@astryxdesign/core/Card";
 import { RadioList, RadioListItem } from "@astryxdesign/core/RadioList";
 import { Switch } from "@astryxdesign/core/Switch";
+import { Banner } from "@astryxdesign/core/Banner";
 import { createTemplate, updateTemplate } from "@/entities/template/api";
+import { ApiError } from "@/shared/api/client";
 import type { Template, TemplateInput } from "@/entities/template/types";
 import type { IgMedia } from "@/entities/ig-account/types";
 import { PostPicker } from "./PostPicker";
@@ -40,6 +42,20 @@ const DEFAULT_MESSAGE_IF_NOT_FOLLOWING =
 // дублирующим и путающим.
 const DEFAULT_MESSAGE_AFTER_FOLLOW = "Спасибо! Вот твоя ссылка ниже 👇";
 
+/** У аккаунта может быть только ОДИН шаблон на "любой пост" — второй сделал
+ * бы срабатывание неоднозначным (какой из двух ловит комментарий?). Правило
+ * бланket: неважно, активен ли существующий и какое у него слово-триггер —
+ * см. переписку по задаче, юзер осознанно упростил именно так, не хотим
+ * заводить более тонкую логику (активен/неактивен, совпадает триггер или
+ * нет) без реальной необходимости. Код ошибки — тот же на фронте и бэке,
+ * см. промпт бэкенду в CLAUDE.md/переписке.
+ */
+const ANY_POST_CONFLICT_CODE = "any_post_template_exists";
+const ANY_POST_CONFLICT_MESSAGE =
+  "У этого аккаунта уже есть шаблон на «любой пост». Одновременно может " +
+  "быть только один такой шаблон — отключите или удалите существующий, " +
+  "чтобы создать новый.";
+
 type WizardStep = 0 | 1 | 2 | 3;
 
 type TemplateWizardProps = {
@@ -48,6 +64,10 @@ type TemplateWizardProps = {
   usernameLoading?: boolean;
   avatarUrl?: string | null;
   media: IgMedia[];
+  /** Уже загруженные шаблоны аккаунта (родитель их и так держит для списка
+   * карточек) — нужны только для клиентской проверки "любой пост"-конфликта
+   * (см. ANY_POST_CONFLICT_MESSAGE), без похода на бэкенд ради неё. */
+  existingTemplates: Template[];
   editingTemplate: Template | null;
   onClose: () => void;
   onSaved: () => void;
@@ -59,6 +79,7 @@ export function TemplateWizard({
   usernameLoading = false,
   avatarUrl = null,
   media,
+  existingTemplates,
   editingTemplate,
   onClose,
   onSaved,
@@ -123,8 +144,27 @@ export function TemplateWizard({
   // до конца жизни визарда (стандартный паттерн "валидируй на первой
   // попытке сабмита, дальше — живьём по мере правок").
   const [hasAttempted, setHasAttempted] = useState(false);
+  // Гонка: бэкенд отклонил по ANY_POST_CONFLICT_CODE, хотя локально
+  // (по устаревшему existingTemplates) конфликта не видно — значит кто-то
+  // создал конфликтующий шаблон между загрузкой страницы и этим сабмитом.
+  // Отдельный флаг, а не просто stepError-текст: без него hasAnyPostConflict
+  // ниже продолжил бы врать "конфликта нет" (существующий проп не
+  // рефетчится), и юзер мог бы тут же повторить ту же ошибку.
+  const [raceConflictDetected, setRaceConflictDetected] = useState(false);
 
   const selectedPost = media.find((m) => m.id === postId) ?? null;
+
+  // Живая (не гейтится hasAttempted — это жёсткий блокер, не забытое
+  // поле, показываем сразу при выборе "любой пост", см. переписку) проверка
+  // конфликта: исключаем сам редактируемый шаблон (иначе редактирование
+  // уже существующего any-post шаблона ложно конфликтовало бы само с
+  // собой).
+  const hasAnyPostConflict =
+    scope === "any" &&
+    (raceConflictDetected ||
+      existingTemplates.some(
+        (t) => t.post_id === null && t.id !== editingTemplate?.id,
+      ));
 
   // Per-field ошибки для шага 3 — считаются на каждый рендер (дёшево,
   // визард не rerender-чувствителен), гейтятся hasAttempted (см. коммент
@@ -169,6 +209,13 @@ export function TemplateWizard({
   function validateStep(s: WizardStep): string | null {
     if (s === 0 && scope === "post" && !postId) {
       return "Выберите пост или переключитесь на «любой пост».";
+    }
+    // Текст конфликта уже виден живьём в Banner'е на шаге 0 (см.
+    // hasAnyPostConflict) — тут короткая ДРУГАЯ формулировка, просто чтобы
+    // блокировать переход, не дублируя слово в слово то, что уже написано
+    // в баннере прямо над этой ошибкой.
+    if (s === 0 && hasAnyPostConflict) {
+      return "Нельзя продолжить, пока не решён конфликт шаблонов выше.";
     }
     if (s === 1 && keywordMode === "specific" && !keyword.trim()) {
       return "Введите хотя бы одно слово или выберите «любое слово».";
@@ -311,6 +358,16 @@ export function TemplateWizard({
       }
       onSaved();
     } catch (e) {
+      // Подстраховка от гонки (два таба, création мимо визарда) — основной
+      // путь уже закрыт клиентской проверкой (hasAnyPostConflict), сюда
+      // должны попадать только эти редкие случаи. Код — see
+      // ANY_POST_CONFLICT_CODE, бэкенд-контракт описан отдельным промптом.
+      if (e instanceof ApiError && e.code === ANY_POST_CONFLICT_CODE) {
+        setRaceConflictDetected(true);
+        setStep(0);
+        setStepError(null);
+        return;
+      }
       setStepError(
         e instanceof Error ? e.message : "Не получилось сохранить шаблон.",
       );
@@ -353,6 +410,19 @@ export function TemplateWizard({
                 }}
               />
 
+              {/* Живой блокер, не гейтится hasAttempted — см. коммент у
+                  hasAnyPostConflict выше: это жёсткое правило, а не
+                  забытое поле, честнее показать сразу при выборе "любой
+                  пост", не дожидаясь клика "Далее". */}
+              {hasAnyPostConflict && (
+                <Banner
+                  status="error"
+                  title="Такой шаблон уже есть"
+                  description={ANY_POST_CONFLICT_MESSAGE}
+                  className="mt-4"
+                />
+              )}
+
               {stepError && (
                 <Text className="mt-4 text-error">{stepError}</Text>
               )}
@@ -362,6 +432,7 @@ export function TemplateWizard({
                 variant="primary"
                 label="Далее"
                 onClick={goNext}
+                isDisabled={hasAnyPostConflict}
                 className="mt-6"
               />
             </>

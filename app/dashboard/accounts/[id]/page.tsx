@@ -225,6 +225,7 @@ export default function TemplatesPage() {
           // буквенный fallback.
           avatarUrl={account?.avatar_url ?? null}
           media={media}
+          existingTemplates={templates}
           editingTemplate={editingTemplate}
           onClose={() => setWizardOpen(false)}
           onSaved={handleWizardSaved}
