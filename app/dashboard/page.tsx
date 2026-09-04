@@ -29,14 +29,18 @@ function accountsCountLabel(n: number): string {
 type StarterCard = {
   title: string;
   popular?: boolean;
+  // Технических флоу — 2 (см. entities/template/types.ts "План: типы
+  // автоматизаций"): "Автоответ на комментарии" и "Собирайте лиды через
+  // комментарии" — один и тот же comment→DM механизм под разным
+  // маркетинговым текстом, ведут в один и тот же визард; "Отвечайте на
+  // все DM" — генуинно другой (DmTemplateWizard).
+  templateType: "comment" | "dm";
 };
 
-// Пока ведут все три на список аккаунтов (шаблон создаётся в контексте
-// конкретного аккаунта) — реальные отдельные сценарии появятся позже.
 const STARTER_CARDS: StarterCard[] = [
-  { title: "Автоответ на комментарии", popular: true },
-  { title: "Собирайте лиды через комментарии" },
-  { title: "Отвечайте на все DM" },
+  { title: "Автоответ на комментарии", popular: true, templateType: "comment" },
+  { title: "Собирайте лиды через комментарии", templateType: "comment" },
+  { title: "Отвечайте на все DM", templateType: "dm" },
 ];
 
 export default function DashboardOverviewPage() {
@@ -102,12 +106,14 @@ export default function DashboardOverviewPage() {
         </Heading>
 
         {/*
-          Единственный существующий флоу создания шаблона — TemplateWizard,
-          открываемый со страницы конкретного аккаунта. Если аккаунт ровно
-          один — ведём прямиком туда с ?newTemplate=1 (страница сама
-          откроет визард, см. dashboard/accounts/[id]/page.tsx). Если
-          аккаунтов 0 или больше одного — ведём на список: нечего/не с кем
-          выбрать однозначно.
+          Каждая карточка ведёт на СВОЙ роут создания шаблона (см.
+          card.templateType выше и app/dashboard/accounts/[id]/templates/
+          new/{comment,dm}/page.tsx) — напрямую, без попапа выбора типа
+          (TemplateTypePicker), он тут не нужен: тип уже известен из
+          того, какую карточку нажали. Если аккаунт ровно один — ведём
+          прямиком в визард; если 0 или больше одного — на список
+          аккаунтов: нечего/не с кем выбрать однозначно, там уже сам
+          попап откроется по "+ Новый шаблон" после выбора аккаунта.
 
           Рендерится БЕЗУСЛОВНО, не дожидаясь loading — сама вёрстка карточек
           не зависит от аккаунтов вообще, зависит только href (см. ниже).
@@ -130,7 +136,7 @@ export default function DashboardOverviewPage() {
               key={card.title}
               href={
                 accounts.length === 1
-                  ? `/dashboard/accounts/${accounts[0].id}?newTemplate=1`
+                  ? `/dashboard/accounts/${accounts[0].id}/templates/new/${card.templateType}`
                   : "/dashboard/accounts"
               }
               label={card.title}

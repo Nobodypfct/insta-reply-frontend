@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import NextLink from "next/link";
 import { getTemplates } from "@/entities/template/api";
 import type { Template } from "@/entities/template/types";
-import { getAccounts, getMedia } from "@/entities/ig-account/api";
-import type { IgAccount, IgMedia } from "@/entities/ig-account/types";
-import { TemplateWizard } from "@/features/template-management/TemplateWizard";
+import { getMedia } from "@/entities/ig-account/api";
+import type { IgMedia } from "@/entities/ig-account/types";
 import { Stack } from "@astryxdesign/core/Stack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Button } from "@astryxdesign/core/Button";
@@ -15,6 +14,7 @@ import { Link } from "@astryxdesign/core/Link";
 import { Banner } from "@astryxdesign/core/Banner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { TemplateCard, TemplateCardSkeleton } from "./TemplateCard";
+import { TemplateTypePicker } from "@/features/template-management/TemplateTypePicker";
 
 /** Число скелетон-карточек, пока реальный список ещё грузится — реальное
  * количество неизвестно заранее, фиксированное число проще и
@@ -23,37 +23,35 @@ const TEMPLATE_SKELETON_COUNT = 3;
 
 export default function TemplatesPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
+  const router = useRouter();
   const igAccountId = params.id as string;
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [media, setMedia] = useState<IgMedia[]>([]);
   // GET /api/ig-accounts/:id/media отдаёт 500, если у аккаунта протух
   // токен (см. переписку по задаче переподключения Instagram) — не
-  // должно ронять ни эту страницу, ни визард, только явно показать, что
-  // именно посты не загрузились (не спутать с "постов реально нет").
+  // должно ронять эту страницу, только явно показать, что именно посты
+  // не загрузились (не спутать с "постов реально нет").
   const [mediaError, setMediaError] = useState(false);
-  const [account, setAccount] = useState<IgAccount | null>(null);
-  const [accountLoading, setAccountLoading] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(
-    null,
-  );
+  // Попап выбора типа автоматизации ("+ Новый шаблон") — сама форма
+  // создания/редактирования теперь отдельные роуты (app/dashboard/
+  // accounts/[id]/templates/**, см. TemplatesContext.tsx), не оверлей на
+  // этой странице, поэтому account/avatar здесь больше не нужны — их
+  // грузит templates/layout.tsx для тех роутов самостоятельно.
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   async function loadData() {
     setLoading(true);
-    setAccountLoading(true);
     setMediaError(false);
 
     // allSettled, не all — media отдельно, потому что именно она падает
     // 500-кой на мёртвом IG-токене (см. состояние mediaError выше);
-    // шаблоны и список аккаунтов при этом загружаются нормально и не
-    // должны падать вместе с ней.
-    const [tplResult, mediaResult, accountsResult] = await Promise.allSettled([
+    // шаблоны при этом загружаются нормально и не должны падать вместе
+    // с ней.
+    const [tplResult, mediaResult] = await Promise.allSettled([
       getTemplates(igAccountId),
       getMedia(igAccountId),
-      getAccounts(),
     ]);
 
     if (tplResult.status === "fulfilled") {
@@ -67,49 +65,12 @@ export default function TemplatesPage() {
       setMediaError(true);
     }
 
-    if (accountsResult.status === "fulfilled") {
-      setAccount(
-        accountsResult.value.accounts?.find((a) => a.id === igAccountId) ??
-          null,
-      );
-    }
-
-    setAccountLoading(false);
     setLoading(false);
   }
 
   useEffect(() => {
     loadData();
   }, [igAccountId]);
-
-  // Точка входа с карточек "Начать здесь" на /dashboard: ?newTemplate=1
-  // сразу открывает визард создания шаблона на этой странице, не заставляя
-  // юзера ещё раз нажимать "+ Новый шаблон" — единственная существующая
-  // точка входа, через которую можно передать намерение "создать
-  // автоматизацию" из главной. Открываем один раз за монтирование.
-  const openedFromQueryRef = useRef(false);
-  useEffect(() => {
-    if (openedFromQueryRef.current) return;
-    if (searchParams.get("newTemplate") === "1") {
-      openedFromQueryRef.current = true;
-      openNewForm();
-    }
-  }, [searchParams]);
-
-  function openNewForm() {
-    setEditingTemplate(null);
-    setWizardOpen(true);
-  }
-
-  function openEditForm(tpl: Template) {
-    setEditingTemplate(tpl);
-    setWizardOpen(true);
-  }
-
-  async function handleWizardSaved() {
-    setWizardOpen(false);
-    await loadData();
-  }
 
   // Точечные локальные обновления — не рефетч. Мутации (сам API-вызов)
   // теперь живут внутри TemplateCard, сюда прилетает уже готовый
@@ -130,6 +91,11 @@ export default function TemplatesPage() {
     return media.find((m) => m.id === postId);
   }
 
+  function handleTypeSelected(type: "comment" | "dm") {
+    setPickerOpen(false);
+    router.push(`/dashboard/accounts/${igAccountId}/templates/new/${type}`);
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
       <Link
@@ -147,7 +113,7 @@ export default function TemplatesPage() {
         <Button
           variant="primary"
           label="+ Новый шаблон"
-          onClick={openNewForm}
+          onClick={() => setPickerOpen(true)}
         />
       </div>
 
@@ -175,7 +141,7 @@ export default function TemplatesPage() {
               key={tpl.id}
               template={tpl}
               post={findMedia(tpl.post_id)}
-              onEdit={() => openEditForm(tpl)}
+              editHref={`/dashboard/accounts/${igAccountId}/templates/${tpl.id}/edit`}
               onDeleted={handleTemplateDeleted}
               onToggled={handleTemplateToggled}
             />
@@ -183,25 +149,11 @@ export default function TemplatesPage() {
         </Stack>
       )}
 
-      {wizardOpen && (
-        <TemplateWizard
-          igAccountId={igAccountId}
-          username={account?.username ?? ""}
-          usernameLoading={accountLoading}
-          // TODO: backend пока не подтверждено отдаёт ли avatar_url (см.
-          // задачу "проверить profile_picture_url в graph.instagram.com для
-          // self-serve OAuth-аккаунтов"). Пока account.avatar_url всегда
-          // undefined/null — PhonePreview корректно откатывается на
-          // буквенный fallback.
-          avatarUrl={account?.avatar_url ?? null}
-          media={media}
-          mediaError={mediaError}
-          existingTemplates={templates}
-          editingTemplate={editingTemplate}
-          onClose={() => setWizardOpen(false)}
-          onSaved={handleWizardSaved}
-        />
-      )}
+      <TemplateTypePicker
+        isOpen={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={handleTypeSelected}
+      />
     </div>
   );
 }

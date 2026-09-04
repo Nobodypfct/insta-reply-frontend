@@ -56,11 +56,25 @@ type PhonePreviewProps = {
   messageIfNotFollowing: string;
   buttonTextFollowConfirm: string;
   messageAfterFollow: string;
-  /** Кнопка-ссылка под финальным сообщением — опциональна, независимо от
-   * requireFollowCheck. Пустая строка = кнопки нет (тот же паттерн, что и
-   * остальные button-поля: пустая = выключено, не отдельный boolean). */
-  linkButtonText?: string;
-  linkButtonUrl?: string;
+  /** Кнопки-ссылки под финальным сообщением — опциональны, независимо от
+   * requireFollowCheck. Массив (не одна кнопка) — DmTemplateWizard
+   * поддерживает несколько ссылок сразу ("+ Add A Link"), у
+   * CommentTemplateWizard массив из 0-1 элемента (своя единственная
+   * кнопка-ссылка) — DMScreen не знает и не должен знать про эту разницу,
+   * просто рисует что дали. Пустой массив = кнопок нет. */
+  links?: LinkButton[];
+  /** Входящее сообщение, "написанное" клиентом — ТОЛЬКО для DM-триггера
+   * (DmTemplateWizard): превью показывает его первым пузырём в ленте
+   * (справа, как исходящее с точки зрения клиента — та же раскладка, что
+   * и у синтетических "кликов по кнопке" ниже), перед ответом бота. У
+   * comment-триггера этого пропа нет — там нет "входящего DM", ответ бот
+   * отправляет сам, без завязки на конкретный текст входящего сообщения. */
+  incomingTriggerText?: string;
+  /** Скрывает таб-бар "Пост/Комментарии/Директ" под мокапом целиком —
+   * для DmTemplateWizard: у него всего один экран превью (Директ),
+   * табы-переключатели между несуществующими экранами не нужны и просто
+   * визуальный шум. */
+  hideTabs?: boolean;
   /** Клик по табу "Пост/Комментарии/Директ" под мокапом — управление шагом
    * визарда живёт в TemplateWizard (сам PhonePreview остаётся презентационным,
    * не знает про 4 шага формы, только про 3 экрана превью), поэтому наружу
@@ -69,6 +83,12 @@ type PhonePreviewProps = {
    * read-only использования этого компонента. */
   onTabClick?: (tab: PreviewStep) => void;
 };
+
+/** Кнопка-ссылка внутри сообщения бота — открывает URL напрямую и ничего
+ * дальше не вызывает (в отличие от `button` в DMMessage ниже, которая
+ * триггерит следующее сообщение). Вынесен на уровень модуля (не внутри
+ * DMScreen) — нужен и в PhonePreviewProps выше. */
+type LinkButton = { text: string; url: string };
 
 const REACTIONS = ["❤️", "🙌", "🔥", "👏", "😢", "😍", "😮", "😂"];
 
@@ -113,8 +133,9 @@ export function PhonePreview({
   messageIfNotFollowing,
   buttonTextFollowConfirm,
   messageAfterFollow,
-  linkButtonText = "",
-  linkButtonUrl = "",
+  links = [],
+  incomingTriggerText,
+  hideTabs = false,
   onTabClick,
 }: PhonePreviewProps) {
   const avatarLetter = (username || "?").slice(0, 1).toUpperCase();
@@ -215,8 +236,8 @@ export function PhonePreview({
                   messageIfNotFollowing={messageIfNotFollowing}
                   buttonTextFollowConfirm={buttonTextFollowConfirm}
                   messageAfterFollow={messageAfterFollow}
-                  linkButtonText={linkButtonText}
-                  linkButtonUrl={linkButtonUrl}
+                  links={links}
+                  incomingTriggerText={incomingTriggerText}
                 />
               </motion.div>
             )}
@@ -232,30 +253,36 @@ export function PhonePreview({
         внутри соответствующей секции), не этот компонент. PhonePreview
         остаётся презентационным — просто получает готовый `step` и
         рисует нужный таб активным, не знает о секциях/фокусе вообще.
+
+        hideTabs — для DmTemplateWizard: там всего один экран превью
+        (Директ), переключать нечего, сам таб-бар не рендерится вообще
+        (не просто дизейблится — см. проп в PhonePreviewProps).
       */}
-      <div className="mt-5 flex items-center gap-1 rounded-full border border-border-strong bg-surface p-1 text-xs">
-        {(
-          [
-            { label: "Пост", previewStep: 0 },
-            { label: "Комментарии", previewStep: 1 },
-            { label: "Директ", previewStep: 2 },
-          ] as const
-        ).map(({ label, previewStep }) => (
-          <button
-            key={label}
-            type="button"
-            disabled={!onTabClick}
-            onClick={() => onTabClick?.(previewStep)}
-            className={`rounded-full px-3 py-1.5 transition-colors ${
-              step === previewStep
-                ? "bg-accent-bg text-on-accent"
-                : `text-secondary ${onTabClick ? "hover:text-primary" : ""}`
-            } ${onTabClick ? "cursor-pointer" : "cursor-default"}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {!hideTabs && (
+        <div className="mt-5 flex items-center gap-1 rounded-full border border-border-strong bg-surface p-1 text-xs">
+          {(
+            [
+              { label: "Пост", previewStep: 0 },
+              { label: "Комментарии", previewStep: 1 },
+              { label: "Директ", previewStep: 2 },
+            ] as const
+          ).map(({ label, previewStep }) => (
+            <button
+              key={label}
+              type="button"
+              disabled={!onTabClick}
+              onClick={() => onTabClick?.(previewStep)}
+              className={`rounded-full px-3 py-1.5 transition-colors ${
+                step === previewStep
+                  ? "bg-accent-bg text-on-accent"
+                  : `text-secondary ${onTabClick ? "hover:text-primary" : ""}`
+              } ${onTabClick ? "cursor-pointer" : "cursor-default"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -631,21 +658,22 @@ function CommentsSheet({
   );
 }
 
-type LinkButton = { text: string; url: string };
 type DMMessage = {
   text: string;
   button: string | null;
-  /** Кнопка-ссылка — концептуально ДРУГОЙ тип, чем `button` выше: та
+  /** Кнопки-ссылки — концептуально ДРУГОЙ тип, чем `button` выше: та
    * триггерит следующее сообщение бота (см. синтетический "клик" ниже),
-   * эта открывает URL напрямую и ничего дальше не вызывает — поэтому у
-   * нее нет соответствующего "user"-элемента в таймлайне. */
-  linkButton?: LinkButton | null;
+   * эти открывают URL напрямую и ничего дальше не вызывают — поэтому у
+   * них нет соответствующего "user"-элемента в таймлайне. Массив, не
+   * одна — см. комментарий у `links` в PhonePreviewProps. */
+  linkButtons: LinkButton[];
 };
-/** Один элемент отрисованной ленты DM: сообщение бота или синтетический
- * "клик по кнопке" от лица пользователя — чисто визуальная иллюстрация,
- * не связана с реальной логикой проверки подписки. */
+/** Один элемент отрисованной ленты DM: сообщение бота, синтетический
+ * "клик по кнопке" от лица пользователя, или (только DM-триггер) реальное
+ * входящее сообщение клиента — чисто визуальная иллюстрация, не связана с
+ * реальной логикой проверки подписки. */
 type DMTimelineItem =
-  | { kind: "bot"; text: string; button: string | null; linkButton?: LinkButton | null }
+  | { kind: "bot"; text: string; button: string | null; linkButtons: LinkButton[] }
   | { kind: "user"; text: string };
 
 function DMScreen({
@@ -659,8 +687,8 @@ function DMScreen({
   messageIfNotFollowing,
   buttonTextFollowConfirm,
   messageAfterFollow,
-  linkButtonText,
-  linkButtonUrl,
+  links = [],
+  incomingTriggerText,
 }: {
   username: string;
   usernameLoading?: boolean;
@@ -672,35 +700,47 @@ function DMScreen({
   messageIfNotFollowing: string;
   buttonTextFollowConfirm: string;
   messageAfterFollow: string;
-  linkButtonText?: string;
-  linkButtonUrl?: string;
+  links?: LinkButton[];
+  incomingTriggerText?: string;
 }) {
-  // Кнопка-ссылка живёт только на финальном сообщении ("После подписки") —
-  // см. задачу, там же и на референсе-скриншоте она появляется.
-  const finalLinkButton: LinkButton | null =
-    linkButtonText?.trim() && linkButtonUrl?.trim()
-      ? { text: linkButtonText.trim(), url: linkButtonUrl.trim() }
-      : null;
+  // Кнопки-ссылки живут только на финальном сообщении ("После подписки"
+  // при requireFollowCheck, единственном сообщении иначе) — см. задачу,
+  // там же и на референсе-скриншоте они появляются. Защитная фильтрация
+  // пустых пар — вызывающая сторона (CommentTemplateWizard/
+  // DmTemplateWizard) уже фильтрует сама, но DMScreen не должен ломаться,
+  // если прилетит что-то недофилленное.
+  const finalLinkButtons = links.filter((l) => l.text.trim() && l.url.trim());
 
   const messages: DMMessage[] = requireFollowCheck
     ? [
-        { text: dmText, button: buttonTextInitial },
-        { text: messageIfNotFollowing, button: buttonTextFollowConfirm },
-        { text: messageAfterFollow, button: null, linkButton: finalLinkButton },
+        { text: dmText, button: buttonTextInitial, linkButtons: [] },
+        {
+          text: messageIfNotFollowing,
+          button: buttonTextFollowConfirm,
+          linkButtons: [],
+        },
+        { text: messageAfterFollow, button: null, linkButtons: finalLinkButtons },
       ]
-    : [{ text: dmText, button: null }];
+    : [{ text: dmText, button: null, linkButtons: finalLinkButtons }];
 
   // Между сообщениями бота, у которых есть кнопка, вставляем "ответ
   // пользователя" — имитацию тапа по этой кнопке — чтобы превью читалось
   // как настоящий диалог, а не список карточек.
   const timeline: DMTimelineItem[] = [];
+  // ТОЛЬКО для DM-триггера (DmTemplateWizard) — реальное входящее
+  // сообщение клиента (слово-триггер), которое запустило автоматизацию,
+  // первым элементом ленты, ПЕРЕД ответом бота. У comment-триггера пропа
+  // нет — там нет отдельного "входящего DM" как такового.
+  if (incomingTriggerText?.trim()) {
+    timeline.push({ kind: "user", text: incomingTriggerText.trim() });
+  }
   for (const m of messages) {
     if (!m.text.trim()) continue;
     timeline.push({
       kind: "bot",
       text: m.text,
       button: m.button,
-      linkButton: m.linkButton,
+      linkButtons: m.linkButtons,
     });
     if (m.button && m.button.trim()) {
       timeline.push({ kind: "user", text: m.button.trim() });
@@ -821,12 +861,15 @@ function DMScreen({
                           {item.button}
                         </div>
                       )}
-                      {item.linkButton && (
-                        <div className="flex items-center justify-center gap-1.5 border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium">
+                      {item.linkButtons.map((lb, j) => (
+                        <div
+                          key={j}
+                          className="flex items-center justify-center gap-1.5 border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium"
+                        >
                           <LinkIcon size={13} className="shrink-0" />
-                          {item.linkButton.text}
+                          {lb.text}
                         </div>
-                      )}
+                      ))}
                     </div>
                   </motion.div>
                 ) : (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import NextLink from "next/link";
+import { ShieldCheck, MessagesSquare } from "lucide-react";
 import { deleteTemplate, toggleTemplateActive } from "@/entities/template/api";
 import type { Template } from "@/entities/template/types";
 import type { IgMedia } from "@/entities/ig-account/types";
@@ -30,18 +31,22 @@ import { Skeleton } from "@astryxdesign/core/Skeleton";
 export function TemplateCard({
   template: tpl,
   post,
-  onEdit,
+  editHref,
   onDeleted,
   onToggled,
 }: {
   template: Template;
   post: Pick<IgMedia, "thumbnail_url" | "media_url"> | undefined;
-  onEdit: () => void;
+  editHref: string;
   onDeleted: (templateId: string) => void;
   onToggled: (templateId: string, isActive: boolean) => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Отсутствующий/null type — шаблоны, созданные до появления
+  // дискриминатора (см. entities/template/types.ts) — трактуем как
+  // "comment", единственный тип, который вообще существовал раньше.
+  const isDm = tpl.type === "dm";
 
   async function handleDelete() {
     setIsDeleting(true);
@@ -63,7 +68,14 @@ export function TemplateCard({
     <Card key={tpl.id} padding={5}>
       <div className="mb-3 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          {post?.thumbnail_url || post?.media_url ? (
+          {isDm ? (
+            // DM-шаблон не завязан на пост вообще — своя иконка (та же,
+            // что в TemplateTypePicker), не превью поста/буквенная
+            // заглушка post_id-веток ниже.
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-accent">
+              <MessagesSquare size={18} />
+            </div>
+          ) : post?.thumbnail_url || post?.media_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={post.thumbnail_url || post.media_url}
@@ -77,7 +89,11 @@ export function TemplateCard({
           )}
           <div>
             <Text weight="medium">
-              {tpl.post_id ? "Конкретный пост" : "Все посты"}
+              {isDm
+                ? "Ответ в директ"
+                : tpl.post_id
+                  ? "Конкретный пост"
+                  : "Все посты"}
             </Text>
             {tpl.keyword && (
               <Text color="secondary" type="supporting" className="mt-0.5 block">
@@ -132,10 +148,15 @@ export function TemplateCard({
       </div>
 
       <Stack gap={1} className="mb-4">
-        <Text color="secondary" type="supporting">
-          Ответы на коммент:{" "}
-          {tpl.template_replies?.map((r) => r.text).join(" · ")}
-        </Text>
+        {/* "Ответы на коммент" — только у comment-типа, у DM-триггера нет
+            отдельного ответа НА КОММЕНТАРИЙ (template_replies), только
+            сам ответный DM-текст ниже. */}
+        {!isDm && (
+          <Text color="secondary" type="supporting">
+            Ответы на коммент:{" "}
+            {tpl.template_replies?.map((r) => r.text).join(" · ")}
+          </Text>
+        )}
         <Text color="secondary" type="supporting">
           DM: {tpl.dm_text}
         </Text>
@@ -148,7 +169,7 @@ export function TemplateCard({
       )}
 
       <div className="flex items-center gap-2">
-        <Link onClick={onEdit} isDisabled={isDeleting}>
+        <Link href={editHref} as={NextLink} isDisabled={isDeleting}>
           Изменить
         </Link>
         <Text color="disabled">·</Text>

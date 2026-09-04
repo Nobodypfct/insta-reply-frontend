@@ -16,17 +16,24 @@ import { Switch } from "@astryxdesign/core/Switch";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Tokenizer } from "@astryxdesign/core/Tokenizer";
-import type { SearchableItem, SearchSource } from "@astryxdesign/core/Typeahead";
+import type { SearchableItem } from "@astryxdesign/core/Typeahead";
 import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@astryxdesign/core/SegmentedControl";
 import { createTemplate, updateTemplate } from "@/entities/template/api";
 import { ApiError } from "@/shared/api/client";
-import type { Template, TemplateInput } from "@/entities/template/types";
+import type { Template, CommentTemplateInput } from "@/entities/template/types";
 import type { IgMedia } from "@/entities/ig-account/types";
 import { PostPicker } from "./PostPicker";
 import { PhonePreview, type PreviewStep } from "./PhonePreview";
+import { FollowCheckFields } from "./FollowCheckFields";
+import {
+  DEFAULT_KEYWORD_TAG,
+  emptyKeywordSource,
+  keywordStringToTags,
+  keywordTagsToString,
+} from "./keywordTags";
 import {
   DM_MESSAGE_MAX_LENGTH,
   COMMENT_REPLY_MAX_LENGTH,
@@ -57,35 +64,9 @@ const DEFAULT_MESSAGE_AFTER_FOLLOW = "Спасибо! Вот твоя ссылк
 // поля, которое выглядит как забытое.
 const DEFAULT_LINK_BUTTON_TEXT = "Смотреть уроки";
 const DEFAULT_LINK_BUTTON_URL = "https://example.com";
-// Дефолтное слово-триггер — тот же пример, что уже был в подсказке поля
-// ("например: цена, стоимость"), теперь как настоящий preset-тег
-// Tokenizer'а (см. keyword ниже).
-const DEFAULT_KEYWORD_TAG: SearchableItem = { id: "цена", label: "цена" };
-
-// Tokenizer в режиме "только свои теги" (см. `hasCreate` на самом
-// компоненте ниже) всё равно требует searchSource — источник данных для
-// автокомплита. У нас его нет (слово-триггер — произвольный ввод, не
-// выбор из готового списка), поэтому источник — пустышка. Тот же приём,
-// что в официальном примере Astryx (`astryx template TokenizerCreatable`).
-const emptyKeywordSource: SearchSource<SearchableItem> = {
-  search: () => [],
-  bootstrap: () => [],
-};
-
-/** keyword хранится и уходит на бэкенд как раньше — одна строка через
- * запятую (см. TemplateInput/Template, формат не менялся). Tokenizer
- * работает с массивом тегов — эти две функции конвертируют туда и обратно
- * на границе компонента, сам API-контракт не тронут. */
-function keywordStringToTags(value: string | null | undefined): SearchableItem[] {
-  return (value ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => ({ id: s, label: s }));
-}
-function keywordTagsToString(tags: SearchableItem[]): string {
-  return tags.map((t) => t.label.trim()).join(", ");
-}
+// DEFAULT_KEYWORD_TAG/emptyKeywordSource/keywordStringToTags/
+// keywordTagsToString — переехали в ./keywordTags.ts (общие с
+// DmTemplateWizard, см. импорт выше).
 
 /** У аккаунта может быть только ОДИН шаблон на "любой пост" — второй сделал
  * бы срабатывание неоднозначным (какой из двух ловит комментарий?). Правило
@@ -108,7 +89,7 @@ const ANY_POST_CONFLICT_MESSAGE =
 // перегруженным.
 type WizardStep = 0 | 1 | 2;
 
-type TemplateWizardProps = {
+type CommentTemplateWizardProps = {
   igAccountId: string;
   username: string;
   usernameLoading?: boolean;
@@ -128,7 +109,15 @@ type TemplateWizardProps = {
   onSaved: () => void;
 };
 
-export function TemplateWizard({
+/** Визард comment→DM (было единственным типом шаблона, отсюда "просто
+ * TemplateWizard" в истории — переименован при появлении второго типа,
+ * DmTemplateWizard, см. entities/template/types.ts "План: типы
+ * автоматизаций"). Раньше рендерился как fixed-оверлей поверх страницы
+ * списка шаблонов; теперь — содержимое отдельного роута
+ * (app/dashboard/accounts/[id]/templates/new/comment и .../[id]/edit),
+ * `onClose`/`onSaved` вызывающая страница реализует через router-навигацию
+ * назад к списку, сам компонент этой разницы не видит. */
+export function CommentTemplateWizard({
   igAccountId,
   username,
   usernameLoading = false,
@@ -139,7 +128,7 @@ export function TemplateWizard({
   editingTemplate,
   onClose,
   onSaved,
-}: TemplateWizardProps) {
+}: CommentTemplateWizardProps) {
   const [step, setStep] = useState<WizardStep>(0);
   // Шаг 0 объединяет две секции формы ("пост" и "слово-триггер"), но у
   // превью телефона для них два РАЗНЫХ визуальных состояния ("Пост" и
@@ -436,7 +425,8 @@ export function TemplateWizard({
     setSaving(true);
     setStepError(null);
 
-    const body: TemplateInput = {
+    const body: CommentTemplateInput = {
+      type: "comment",
       postId: scope === "any" ? null : postId,
       keyword:
         keywordMode === "any"
@@ -485,8 +475,13 @@ export function TemplateWizard({
     }
   }
 
+  // Раньше был fixed-оверлей (fixed inset-0 z-50) поверх страницы списка
+  // шаблонов — теперь содержимое отдельного роута (см. комментарий у
+  // CommentTemplateWizardProps выше), рендерится ВНУТРИ обычного layout'а
+  // (AppShell дашборда, сайдбар остаётся виден слева) — не full-screen
+  // overlay, просто высокий flex-контейнер на весь экран по вертикали.
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-surface">
+    <div className="flex min-h-screen flex-col bg-surface">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <Link onClick={onClose}>← Отмена</Link>
         <Text color="secondary" type="supporting">
@@ -734,86 +729,56 @@ export function TemplateWizard({
               </Card>
 
               <Card padding={4} className="mt-4">
-                <Switch
-                  label="Проверять подписку перед выдачей"
-                  description="Бот попросит подписаться, прежде чем прислать материал"
-                  value={requireFollowCheck}
-                  onChange={(checked) => setRequireFollowCheck(checked)}
-                  labelSpacing="spread"
-                />
-
-                {requireFollowCheck && (
-                  <Stack gap={4} className="mt-4 border-t border-border pt-4">
-                    <TextInput
-                      label="Текст кнопки в открывающем сообщении"
-                      value={buttonTextInitial}
-                      onChange={(value) => setButtonTextInitial(value)}
-                    />
-                    <TextArea
-                      label="Сообщение, если подписки нет"
-                      value={messageIfNotFollowing}
-                      onChange={(value) => setMessageIfNotFollowing(value)}
-                      rows={3}
-                      maxLength={DM_MESSAGE_MAX_LENGTH}
-                      placeholder="Похоже, ты ещё не подписан(а). Подпишись и жми кнопку ниже 👇"
-                      status={
-                        messageIfNotFollowingError
-                          ? { type: "error", message: messageIfNotFollowingError }
-                          : undefined
-                      }
-                    />
-                    <TextInput
-                      label="Текст кнопки «Я подписался»"
-                      value={buttonTextFollowConfirm}
-                      onChange={(value) => setButtonTextFollowConfirm(value)}
-                    />
-                    <TextArea
-                      label="Финальное сообщение"
-                      value={messageAfterFollow}
-                      onChange={(value) => setMessageAfterFollow(value)}
-                      rows={3}
-                      maxLength={DM_MESSAGE_MAX_LENGTH}
-                      placeholder="Спасибо! Вот твоя ссылка ниже 👇"
-                      status={
-                        messageAfterFollowError
-                          ? { type: "error", message: messageAfterFollowError }
-                          : undefined
-                      }
-                    />
-
-                    {/* Кнопка-ссылка — своя опциональная секция, не завязана
-                        жёстко на "финальное сообщение обязано её иметь":
-                        не каждый юзер хочет вести на внешний урл именно тут. */}
-                    <Switch
-                      label="Добавить кнопку со ссылкой"
-                      description="Откроет указанный урл — в отличие от кнопок выше, не отправляет следующее сообщение"
-                      value={showLinkButton}
-                      onChange={(checked) => setShowLinkButton(checked)}
-                      labelSpacing="spread"
-                    />
-                    {showLinkButton && (
-                      <Stack gap={3} className="border-t border-border pt-3">
-                        <TextInput
-                          label="Текст кнопки"
-                          value={linkButtonText}
-                          onChange={(value) => setLinkButtonText(value)}
-                          placeholder="Смотреть уроки"
-                        />
-                        <TextInput
-                          label="Ссылка"
-                          value={linkButtonUrl}
-                          onChange={(value) => setLinkButtonUrl(value)}
-                          placeholder="https://..."
-                          status={
-                            linkButtonUrlError
-                              ? { type: "error", message: linkButtonUrlError }
-                              : undefined
-                          }
-                        />
-                      </Stack>
-                    )}
-                  </Stack>
-                )}
+                <FollowCheckFields
+                  requireFollowCheck={requireFollowCheck}
+                  onRequireFollowCheckChange={setRequireFollowCheck}
+                  buttonTextInitial={buttonTextInitial}
+                  onButtonTextInitialChange={setButtonTextInitial}
+                  messageIfNotFollowing={messageIfNotFollowing}
+                  onMessageIfNotFollowingChange={setMessageIfNotFollowing}
+                  messageIfNotFollowingError={messageIfNotFollowingError}
+                  buttonTextFollowConfirm={buttonTextFollowConfirm}
+                  onButtonTextFollowConfirmChange={setButtonTextFollowConfirm}
+                  messageAfterFollow={messageAfterFollow}
+                  onMessageAfterFollowChange={setMessageAfterFollow}
+                  messageAfterFollowError={messageAfterFollowError}
+                >
+                  {/* Кнопка-ссылка — своя опциональная секция, не завязана
+                      жёстко на "финальное сообщение обязано её иметь": не
+                      каждый юзер хочет вести на внешний урл именно тут.
+                      Специфично для CommentTemplateWizard (одна кнопка, не
+                      массив — см. DmTemplateWizard's "Add A Link" для
+                      контраста), поэтому не часть общего FollowCheckFields,
+                      передаётся туда через children. */}
+                  <Switch
+                    label="Добавить кнопку со ссылкой"
+                    description="Откроет указанный урл — в отличие от кнопок выше, не отправляет следующее сообщение"
+                    value={showLinkButton}
+                    onChange={(checked) => setShowLinkButton(checked)}
+                    labelSpacing="spread"
+                  />
+                  {showLinkButton && (
+                    <Stack gap={3} className="border-t border-border pt-3">
+                      <TextInput
+                        label="Текст кнопки"
+                        value={linkButtonText}
+                        onChange={(value) => setLinkButtonText(value)}
+                        placeholder="Смотреть уроки"
+                      />
+                      <TextInput
+                        label="Ссылка"
+                        value={linkButtonUrl}
+                        onChange={(value) => setLinkButtonUrl(value)}
+                        placeholder="https://..."
+                        status={
+                          linkButtonUrlError
+                            ? { type: "error", message: linkButtonUrlError }
+                            : undefined
+                        }
+                      />
+                    </Stack>
+                  )}
+                </FollowCheckFields>
               </Card>
 
               {stepError && (
@@ -875,8 +840,11 @@ export function TemplateWizard({
             messageIfNotFollowing={messageIfNotFollowing}
             buttonTextFollowConfirm={buttonTextFollowConfirm}
             messageAfterFollow={messageAfterFollow}
-            linkButtonText={showLinkButton ? linkButtonText : ""}
-            linkButtonUrl={showLinkButton ? linkButtonUrl : ""}
+            links={
+              showLinkButton && linkButtonText.trim() && linkButtonUrl.trim()
+                ? [{ text: linkButtonText.trim(), url: linkButtonUrl.trim() }]
+                : []
+            }
             onTabClick={handlePreviewTabClick}
           />
         </div>
