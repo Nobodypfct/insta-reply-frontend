@@ -13,7 +13,10 @@ import { Link } from "@astryxdesign/core/Link";
 import { Card } from "@astryxdesign/core/Card";
 import { RadioList, RadioListItem } from "@astryxdesign/core/RadioList";
 import { Switch } from "@astryxdesign/core/Switch";
+import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { Banner } from "@astryxdesign/core/Banner";
+import { Tokenizer } from "@astryxdesign/core/Tokenizer";
+import type { SearchableItem, SearchSource } from "@astryxdesign/core/Typeahead";
 import {
   SegmentedControl,
   SegmentedControlItem,
@@ -45,6 +48,44 @@ const DEFAULT_MESSAGE_IF_NOT_FOLLOWING =
 // (см. linkButtonText/linkButtonUrl), токен в самом тексте стал бы
 // дублирующим и путающим.
 const DEFAULT_MESSAGE_AFTER_FOLLOW = "Спасибо! Вот твоя ссылка ниже 👇";
+// Раньше эти два поля были дефолтны только через placeholder (без
+// настоящего value) — единственная непоследовательность в паттерне: все
+// остальные поля, которые появляются по включению тумблера (см. DEFAULT_*
+// выше, requireFollowCheck), сразу приходят заполненными примером.
+// linkButtonUrl — не пустая строка (см. переписку): фальшивый домен
+// example.com однозначно читается как "замени меня", в отличие от пустого
+// поля, которое выглядит как забытое.
+const DEFAULT_LINK_BUTTON_TEXT = "Смотреть уроки";
+const DEFAULT_LINK_BUTTON_URL = "https://example.com";
+// Дефолтное слово-триггер — тот же пример, что уже был в подсказке поля
+// ("например: цена, стоимость"), теперь как настоящий preset-тег
+// Tokenizer'а (см. keyword ниже).
+const DEFAULT_KEYWORD_TAG: SearchableItem = { id: "цена", label: "цена" };
+
+// Tokenizer в режиме "только свои теги" (см. `hasCreate` на самом
+// компоненте ниже) всё равно требует searchSource — источник данных для
+// автокомплита. У нас его нет (слово-триггер — произвольный ввод, не
+// выбор из готового списка), поэтому источник — пустышка. Тот же приём,
+// что в официальном примере Astryx (`astryx template TokenizerCreatable`).
+const emptyKeywordSource: SearchSource<SearchableItem> = {
+  search: () => [],
+  bootstrap: () => [],
+};
+
+/** keyword хранится и уходит на бэкенд как раньше — одна строка через
+ * запятую (см. TemplateInput/Template, формат не менялся). Tokenizer
+ * работает с массивом тегов — эти две функции конвертируют туда и обратно
+ * на границе компонента, сам API-контракт не тронут. */
+function keywordStringToTags(value: string | null | undefined): SearchableItem[] {
+  return (value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => ({ id: s, label: s }));
+}
+function keywordTagsToString(tags: SearchableItem[]): string {
+  return tags.map((t) => t.label.trim()).join(", ");
+}
 
 /** У аккаунта может быть только ОДИН шаблон на "любой пост" — второй сделал
  * бы срабатывание неоднозначным (какой из двух ловит комментарий?). Правило
@@ -124,7 +165,24 @@ export function TemplateWizard({
   const [keywordMode, setKeywordMode] = useState<"specific" | "any">(
     editingTemplate?.keyword ? "specific" : "any",
   );
-  const [keyword, setKeyword] = useState(editingTemplate?.keyword ?? "");
+  // Новый шаблон — преднаполнен примером-тегом (DEFAULT_KEYWORD_TAG, см.
+  // выше), редактирование существующего — реальные слова из
+  // editingTemplate.keyword, распарсенные в теги; ключевое отличие от
+  // остальных DEFAULT_*-полей этого файла: тут дефолт зависит от того,
+  // создаём мы шаблон или правим, а не берётся безусловно.
+  const [keywordTags, setKeywordTags] = useState<SearchableItem[]>(() =>
+    editingTemplate
+      ? keywordStringToTags(editingTemplate.keyword)
+      : [DEFAULT_KEYWORD_TAG],
+  );
+  // НОВОЕ поле, бэкенд пока не поддерживает (тот же паттерн, что
+  // link_button_*/avatar_url — см. CLAUDE.md) — отправляется
+  // forward-compatible, бэкенд игнорирует, пока не реализует различение
+  // "точное совпадение целиком" vs текущее (частичное/подстрочное)
+  // сопоставление слова-триггера с текстом комментария.
+  const [exactMatch, setExactMatch] = useState(
+    editingTemplate?.exact_match ?? false,
+  );
   const [dmText, setDmText] = useState(
     editingTemplate?.dm_text ?? DEFAULT_DM_TEXT,
   );
@@ -161,10 +219,10 @@ export function TemplateWizard({
     Boolean(editingTemplate?.link_button_text || editingTemplate?.link_button_url),
   );
   const [linkButtonText, setLinkButtonText] = useState(
-    editingTemplate?.link_button_text ?? "",
+    editingTemplate?.link_button_text || DEFAULT_LINK_BUTTON_TEXT,
   );
   const [linkButtonUrl, setLinkButtonUrl] = useState(
-    editingTemplate?.link_button_url ?? "",
+    editingTemplate?.link_button_url || DEFAULT_LINK_BUTTON_URL,
   );
   const [saving, setSaving] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
@@ -248,8 +306,8 @@ export function TemplateWizard({
       if (hasAnyPostConflict) {
         return "Нельзя продолжить, пока не решён конфликт шаблонов выше.";
       }
-      if (keywordMode === "specific" && !keyword.trim()) {
-        return "Введите хотя бы одно слово или выберите «любое слово».";
+      if (keywordMode === "specific" && keywordTags.length === 0) {
+        return "Добавьте хотя бы одно слово или выберите «любое слово».";
       }
     }
     if (s === 1) {
@@ -380,7 +438,12 @@ export function TemplateWizard({
 
     const body: TemplateInput = {
       postId: scope === "any" ? null : postId,
-      keyword: keywordMode === "any" ? null : keyword.trim() || null,
+      keyword:
+        keywordMode === "any"
+          ? null
+          : keywordTagsToString(keywordTags).trim() || null,
+      // Forward-compatible, см. комментарий у useState(exactMatch) выше.
+      exactMatch,
       dmText: dmText.trim(),
       replyTexts: trimmedReplies,
       requireFollowCheck,
@@ -520,13 +583,27 @@ export function TemplateWizard({
 
                 {keywordMode === "specific" && (
                   <div className="mt-4">
-                    <TextInput
+                    {/* hasCreate + пустой searchSource — чистый free-text
+                        tagging, без выбора из готового списка (см.
+                        emptyKeywordSource выше). Каждое слово/фраза —
+                        отдельный удаляемый чип, а не подстрока внутри
+                        одного текстового поля, как было раньше. */}
+                    <Tokenizer
                       label="Слово-триггер"
                       isLabelHidden
-                      value={keyword}
-                      onChange={(value) => setKeyword(value)}
+                      searchSource={emptyKeywordSource}
+                      value={keywordTags}
+                      onChange={(items) => setKeywordTags(items)}
+                      hasCreate
                       placeholder="например: цена, стоимость"
-                      description="Через запятую, если вариантов несколько"
+                      description="Enter или запятая — добавить слово"
+                    />
+                    <CheckboxInput
+                      label="Точное совпадение"
+                      description="Комментарий должен содержать слово/фразу целиком, а не как часть другого слова."
+                      value={exactMatch}
+                      onChange={(checked) => setExactMatch(checked)}
+                      className="mt-3"
                     />
                   </div>
                 )}
@@ -788,7 +865,7 @@ export function TemplateWizard({
                 : null
             }
             isAnyPost={scope === "any"}
-            keyword={keyword}
+            keyword={keywordTagsToString(keywordTags)}
             keywordMode={keywordMode}
             dmText={dmText}
             showReply={step === 1}

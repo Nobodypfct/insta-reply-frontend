@@ -21,6 +21,11 @@ export type Template = {
   // для примера того же паттерна с avatar_url).
   link_button_text?: string | null;
   link_button_url?: string | null;
+  // Точное совпадение слова-триггера с текстом комментария (целиком, не
+  // подстрокой) — НОВОЕ, backend пока не хранит и не отдаёт (тот же
+  // паттерн, что link_button_*/avatar_url выше — см. CLAUDE.md, "Аватарка
+  // IG-аккаунта"). Задача поставлена отдельным промптом.
+  exact_match?: boolean | null;
 };
 
 export type TemplateInput = {
@@ -38,4 +43,6 @@ export type TemplateInput = {
   // в Template выше) — отправляем forward-compatible, бэкенд игнорирует.
   linkButtonText: string;
   linkButtonUrl: string;
+  // НОВОЕ, см. комментарий у exact_match в Template выше.
+  exactMatch: boolean;
 };

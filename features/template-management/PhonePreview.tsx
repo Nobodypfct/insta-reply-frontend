@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Text } from "@astryxdesign/core/Text";
 import {
@@ -537,7 +537,7 @@ function CommentsSheet({
           меньше содержимого (min-height: auto), даже с overflow-y-auto —
           без этой строчки контейнер просто раздувается и толкает рамку
           телефона, вместо того чтобы скроллиться внутри себя. */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div className="mock-scroll min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {/*
           Комментарий и ответ на него — ДВА НЕЗАВИСИМЫХ ряда одинаковой
           формы (аватар + текст + сердце), не вложенность одного в
@@ -707,6 +707,47 @@ function DMScreen({
     }
   }
 
+  // Реальный баг, не просто "нестилизовано": контейнер ленты ниже раньше
+  // был `flex flex-col justify-end` — стандартный приём для чат-ленты,
+  // прижатой к низу, ПОКА контент помещается. Как только сообщений
+  // становится больше высоты рамки, `justify-content: flex-end` +
+  // `overflow-y-auto` вместе — известный баг браузеров (см. w3c/csswg-
+  // drafts#129): overflow, "торчащий" со стороны flex-start (здесь —
+  // сверху, раз выравнивание к низу), в scrollable overflow area не
+  // попадает вообще — `scrollHeight` показывает то же, что и
+  // `clientHeight`, кнопкой мыши/трекпадом верх ленты физически
+  // недостижим, хотя визуально обрезан (проверено вручную: девтулз,
+  // `el.scrollHeight === el.clientHeight` при явно обрезанном контенте).
+  // Фикс — контейнер больше не просит выравнивание по низу сам
+  // (justify-content остаётся дефолтным flex-start, см. className ниже),
+  // вместо этого «прижатость к низу» при коротком контенте имитирует
+  // спейсер с flex-1 ПЕРЕД сообщениями (первый child внутри списка ниже)
+  // — он растягивается и выталкивает сообщения вниз, но не участвует в
+  // overflow-логике так, как flex-end. Для АВТОСКРОЛЛА к последнему
+  // сообщению (в т.ч. когда они появляются по очереди со stagger-
+  // анимацией) — ResizeObserver на контенте ленты, не таймер/делэй,
+  // подобранный под длительность анимации (тот легко разойдётся с
+  // реальным временем при догрузке шрифтов и т.п.).
+  const listRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    const content = contentRef.current;
+    if (!list || !content) return;
+    const scrollToBottom = () => {
+      list.scrollTop = list.scrollHeight;
+    };
+    scrollToBottom();
+    // Наблюдаем именно за контентом (не за списком-контейнером — у него
+    // самого высота фиксирована рамкой телефона и не меняется, "растёт"
+    // именно контент внутри).
+    const observer = new ResizeObserver(scrollToBottom);
+    observer.observe(content);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeline.length]);
+
   return (
     <div className="flex h-full flex-col bg-[var(--chat-bg)] pt-11 text-white">
       <div className="flex items-center gap-3 border-b border-white/10 bg-[var(--chat-header-bg)] px-4 py-2.5">
@@ -725,74 +766,94 @@ function DMScreen({
       </div>
 
       {/* min-h-0 — та же причина, что в CommentsSheet выше: без него
-          flex-элемент с overflow-y-auto не скроллится, а раздувается. */}
-      <div className="min-h-0 flex flex-1 flex-col justify-end gap-2.5 overflow-y-auto px-4 py-4">
-        {timeline.length > 0 ? (
-          timeline.map((item, i) => {
-            // Аватар и "хвостик" — только у первого сообщения в серии
-            // подряд идущих сообщений ОДНОГО отправителя, как в настоящем
-            // Instagram: если предыдущий элемент ленты того же типа
-            // (bot/user), это продолжение той же группы.
-            const isFirstInGroup = i === 0 || timeline[i - 1].kind !== item.kind;
+          flex-элемент с overflow-y-auto не скроллится, а раздувается.
+          justify-end (было раньше) намеренно убран — см. комментарий про
+          баг выше; min-h-full + спейсер с flex-1 внутри имитируют ту же
+          "прижатость к низу" короткой ленты, но не ломают скролл длинной. */}
+      <div
+        ref={listRef}
+        className="mock-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4"
+      >
+        <div className="flex min-h-full flex-col">
+          <div className="flex-1" />
+          <div ref={contentRef} className="flex flex-col gap-2.5">
+            {timeline.length > 0 ? (
+              timeline.map((item, i) => {
+                // Аватар и "хвостик" — только у первого сообщения в серии
+                // подряд идущих сообщений ОДНОГО отправителя, как в
+                // настоящем Instagram: если предыдущий элемент ленты того
+                // же типа (bot/user), это продолжение той же группы.
+                const isFirstInGroup =
+                  i === 0 || timeline[i - 1].kind !== item.kind;
 
-            return item.kind === "bot" ? (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.4, duration: 0.3, ease: "easeOut" }}
-                className="flex max-w-[85%] items-end gap-2"
-              >
-                {isFirstInGroup ? (
-                  <AccountAvatar
-                    letter={avatarLetter}
-                    avatarUrl={avatarUrl}
-                    loading={usernameLoading}
-                    className="h-6 w-6 text-[10px]"
-                  />
+                return item.kind === "bot" ? (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      delay: i * 0.4,
+                      duration: 0.3,
+                      ease: "easeOut",
+                    }}
+                    className="flex max-w-[85%] items-end gap-2"
+                  >
+                    {isFirstInGroup ? (
+                      <AccountAvatar
+                        letter={avatarLetter}
+                        avatarUrl={avatarUrl}
+                        loading={usernameLoading}
+                        className="h-6 w-6 text-[10px]"
+                      />
+                    ) : (
+                      <div className="h-6 w-6 shrink-0" />
+                    )}
+                    <div
+                      className={`overflow-hidden rounded-2xl bg-[var(--chat-incoming-bg)] text-[var(--chat-incoming-text)] ${
+                        isFirstInGroup ? "rounded-bl-sm" : ""
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap px-3.5 py-2.5 text-sm leading-relaxed">
+                        {item.text}
+                      </p>
+                      {item.button && (
+                        <div className="border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium">
+                          {item.button}
+                        </div>
+                      )}
+                      {item.linkButton && (
+                        <div className="flex items-center justify-center gap-1.5 border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium">
+                          <LinkIcon size={13} className="shrink-0" />
+                          {item.linkButton.text}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
                 ) : (
-                  <div className="h-6 w-6 shrink-0" />
-                )}
-                <div
-                  className={`overflow-hidden rounded-2xl bg-[var(--chat-incoming-bg)] text-[var(--chat-incoming-text)] ${
-                    isFirstInGroup ? "rounded-bl-sm" : ""
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap px-3.5 py-2.5 text-sm leading-relaxed">
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      delay: i * 0.4,
+                      duration: 0.3,
+                      ease: "easeOut",
+                    }}
+                    className={`ml-auto max-w-[85%] rounded-2xl bg-[var(--chat-outgoing-bg)] px-3.5 py-2.5 text-sm leading-relaxed text-white ${
+                      isFirstInGroup ? "rounded-br-sm" : ""
+                    }`}
+                  >
                     {item.text}
-                  </p>
-                  {item.button && (
-                    <div className="border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium">
-                      {item.button}
-                    </div>
-                  )}
-                  {item.linkButton && (
-                    <div className="flex items-center justify-center gap-1.5 border-t border-[var(--chat-quickreply-border)] bg-[var(--chat-quickreply-bg)] px-3.5 py-2.5 text-center text-sm font-medium">
-                      <LinkIcon size={13} className="shrink-0" />
-                      {item.linkButton.text}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
+                  </motion.div>
+                );
+              })
             ) : (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.4, duration: 0.3, ease: "easeOut" }}
-                className={`ml-auto max-w-[85%] rounded-2xl bg-[var(--chat-outgoing-bg)] px-3.5 py-2.5 text-sm leading-relaxed text-white ${
-                  isFirstInGroup ? "rounded-br-sm" : ""
-                }`}
-              >
-                {item.text}
-              </motion.div>
-            );
-          })
-        ) : (
-          <p className="text-center text-xs text-white/30">
-            Введите текст сообщения слева
-          </p>
-        )}
+              <p className="text-center text-xs text-white/30">
+                Введите текст сообщения слева
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* нижняя панель ввода — статичный декор, не интерактивна */}
