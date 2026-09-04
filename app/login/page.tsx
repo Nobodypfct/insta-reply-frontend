@@ -11,6 +11,7 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 import { Button } from "@astryxdesign/core/Button";
 import { Link } from "@astryxdesign/core/Link";
 import { Divider } from "@astryxdesign/core/Divider";
+import { Banner } from "@astryxdesign/core/Banner";
 
 /**
  * Официальный многоцветный логотип "G" Google — используется по гайдлайнам
@@ -50,6 +51,11 @@ function LoginForm() {
   // отсюда идёт в разные места (router.push, OAuth redirectTo) — доверять
   // сырому значению из URL нельзя ни в одном из них.
   const next = sanitizeNextPath(searchParams.get("next"));
+  // Проставляется shared/api/client.ts при принудительном разлогине
+  // (протухший refresh-токен/повторный 401 после рефреша) — отличаем от
+  // обычного захода на /login, чтобы не выглядело так, будто юзер просто
+  // забыл, что не был залогинен.
+  const sessionExpired = searchParams.get("session_expired") === "1";
   const signupHref = next ? `/signup?next=${encodeURIComponent(next)}` : "/signup";
   const forgotPasswordHref = next
     ? `/forgot-password?next=${encodeURIComponent(next)}`
@@ -135,6 +141,15 @@ function LoginForm() {
             Войти в кабинет
           </Heading>
         </Stack>
+
+        {sessionExpired && !unconfirmedEmail && (
+          <Banner
+            status="warning"
+            title="Сессия истекла"
+            description="Войдите снова, чтобы продолжить."
+            className="mb-6"
+          />
+        )}
 
         {unconfirmedEmail ? (
           <Stack gap={3}>

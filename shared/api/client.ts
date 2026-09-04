@@ -52,13 +52,15 @@ async function refreshSessionOnce(): Promise<boolean> {
   return refreshPromise;
 }
 
-/** Сессия окончательно мертва (401 повторно после рефреша) — разлогиниваем
- * и уводим на /login, сохраняя текущий путь через ?next= (та же
- * санитайзация и тот же параметр, что уже использует proxy.ts/логин —
- * см. shared/lib/next-url.ts). Жёсткая навигация (не router.push) — этот
- * модуль не React-компонент, useRouter тут недоступен, а полный сброс
- * состояния приложения после смерти сессии — это уместное поведение, не
- * недостаток мягкого перехода. */
+/** Сессия окончательно мертва (рефреш не помог, либо помог, но и повторный
+ * запрос всё равно словил 401) — разлогиниваем и уводим на /login, сохраняя
+ * текущий путь через ?next= (та же санитайзация и тот же параметр, что уже
+ * использует proxy.ts/логин — см. shared/lib/next-url.ts) и с пометкой
+ * session_expired=1, чтобы /login показал "сессия истекла", а не голую
+ * форму (см. app/login/page.tsx). Жёсткая навигация (не router.push) —
+ * этот модуль не React-компонент, useRouter тут недоступен, а полный
+ * сброс состояния приложения после смерти сессии — это уместное
+ * поведение, не недостаток мягкого перехода. */
 function redirectToLogin() {
   const next =
     typeof window !== "undefined"
@@ -66,9 +68,10 @@ function redirectToLogin() {
       : null;
   const supabase = createClient();
   supabase.auth.signOut().finally(() => {
-    window.location.href = next
-      ? `/login?next=${encodeURIComponent(next)}`
-      : "/login";
+    const url = new URL("/login", window.location.origin);
+    url.searchParams.set("session_expired", "1");
+    if (next) url.searchParams.set("next", next);
+    window.location.href = url.toString();
   });
 }
 
@@ -112,19 +115,31 @@ async function request<T>(
   });
 
   // 401 — токена нет/протух/невалиден. Один раз молча пробуем освежить
-  // сессию и повторить ЭТОТ ЖЕ запрос; если рефреш не помог (сессия
-  // реально мертва, не просто протухший access-token) — разлогиниваем.
-  // isRetryAfterRefresh не даёт уйти в рекурсию больше одного раза.
-  if (res.status === 401 && !isRetryAfterRefresh) {
-    const refreshed = await refreshSessionOnce();
-    if (refreshed) {
-      return request<T>(path, options, true);
+  // сессию и повторить ЭТОТ ЖЕ запрос; разлогиниваем в ДВУХ случаях:
+  // (а) сам refreshSession() не помог (refresh-токен мёртв), или
+  // (б) помог, но и повторный запрос ВСЁ РАВНО словил 401 (например бэкенд
+  // отклонил уже per другой причине) — это и есть "если снова 401" из
+  // задачи, раньше эта ветка ошибочно НЕ разлогинивала, просто пробрасывала
+  // общую ApiError. isRetryAfterRefresh не даёt уйти в рекурсию больше
+  // одного раза — на второй попытке этот if пропускается, и код падает
+  // прямо в разлогин ниже.
+  if (res.status === 401) {
+    if (!isRetryAfterRefresh) {
+      const refreshed = await refreshSessionOnce();
+      if (refreshed) {
+        return request<T>(path, options, true);
+      }
     }
     redirectToLogin();
-    // Страница уже уходит на /login — throw просто останавливает текущую
-    // цепочку await, вызывающему коду незачем пытаться отрендерить
-    // что-то с этим ответом.
-    throw new ApiError(401, "Сессия истекла", "unauthorized");
+    // Страница уже уходит на /login. Возвращаем промис, который НИКОГДА
+    // не резолвится (не throw/reject!) — вызывающий код в проекте часто
+    // не оборачивает apiClient в try/catch (например `await getAccounts()`
+    // прямо в useEffect на нескольких страницах дашборда), и reject без
+    // catch сыпет "Uncaught (in promise)" в консоль браузера ровно в
+    // момент, когда это уже не имеет значения — страница и так исчезает.
+    // Зависший промис молча "замораживает" этот вызов до навигации, без
+    // предупреждений.
+    return new Promise<T>(() => {});
   }
 
   if (!res.ok) {
