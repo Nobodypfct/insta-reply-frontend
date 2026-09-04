@@ -512,7 +512,22 @@ function CommentsSheet({
         <Send size={18} className="justify-self-end text-white" />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      {/* min-h-0 обязателен: flex-элемент по умолчанию не может стать
+          меньше содержимого (min-height: auto), даже с overflow-y-auto —
+          без этой строчки контейнер просто раздувается и толкает рамку
+          телефона, вместо того чтобы скроллиться внутри себя. */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        {/*
+          Комментарий и ответ на него — ДВА НЕЗАВИСИМЫХ ряда одинаковой
+          формы (аватар + текст + сердце), не вложенность одного в
+          flex-1 другого. Раньше ответ был ребёнком text-колонки
+          комментария — из-за этого его собственная ширина урезалась
+          ДВАЖДЫ (сердцем комментария снаружи И своим же сердцем внутри),
+          отсюда неправдоподобно узкий перенос текста и "съезжающее"
+          сердце у ответа. Отступ pl-9 — визуальная имитация вложенности
+          (под текстом комментария, не под его аватаром), без реальной
+          вложенности в DOM.
+        */}
         <div className="flex items-start gap-2.5">
           <div className="h-7 w-7 shrink-0 rounded-full bg-white/90" />
           <div className="flex-1 text-xs">
@@ -522,52 +537,50 @@ function CommentsSheet({
             </p>
             <p className="mt-0.5 text-white/80">{commentText}</p>
             <p className="mt-1 text-white/30">Ответить</p>
-
-            {/* ответ бота — вложенный reply, просто отступом (без border-l
-                — так на референсе, настоящий Instagram линию не рисует) */}
-            <AnimatePresence>
-              {replyPhase !== "idle" && (
-                <motion.div
-                  key="bot-reply"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="mt-3 flex items-start gap-2 pl-3"
-                >
-                  <AccountAvatar
-                    letter={avatarLetter}
-                    avatarUrl={avatarUrl}
-                    loading={usernameLoading}
-                    className="h-5 w-5 text-[9px]"
-                  />
-                  <div className="flex-1">
-                    <p className="text-white/90">
-                      <span className="font-medium">
-                        <AccountName
-                          username={username}
-                          loading={usernameLoading}
-                          skeletonWidth="w-12"
-                        />
-                      </span>{" "}
-                      <span className="text-white/40">сейчас</span>
-                    </p>
-                    {replyPhase === "typing" ? (
-                      <p className="mt-0.5 text-white/40">···</p>
-                    ) : (
-                      <p className="mt-0.5 text-white/80">
-                        {replyText || "Спасибо за комментарий 🙌"}
-                      </p>
-                    )}
-                    <p className="mt-1 text-white/30">Ответить</p>
-                  </div>
-                  <Heart size={14} className="mt-0.5 shrink-0 text-white/70" />
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
           <Heart size={14} className="mt-0.5 shrink-0 text-white/70" />
         </div>
+
+        <AnimatePresence>
+          {replyPhase !== "idle" && (
+            <motion.div
+              key="bot-reply"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="mt-3 flex items-start gap-2 pl-9"
+            >
+              <AccountAvatar
+                letter={avatarLetter}
+                avatarUrl={avatarUrl}
+                loading={usernameLoading}
+                className="h-5 w-5 text-[9px]"
+              />
+              <div className="flex-1 text-xs">
+                <p className="text-white/90">
+                  <span className="font-medium">
+                    <AccountName
+                      username={username}
+                      loading={usernameLoading}
+                      skeletonWidth="w-12"
+                    />
+                  </span>{" "}
+                  <span className="text-white/40">сейчас</span>
+                </p>
+                {replyPhase === "typing" ? (
+                  <p className="mt-0.5 text-white/40">···</p>
+                ) : (
+                  <p className="mt-0.5 text-white/80">
+                    {replyText || "Спасибо за комментарий 🙌"}
+                  </p>
+                )}
+                <p className="mt-1 text-white/30">Ответить</p>
+              </div>
+              <Heart size={14} className="mt-0.5 shrink-0 text-white/70" />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="flex gap-2.5 px-3 pb-2 text-base">
@@ -690,7 +703,9 @@ function DMScreen({
         <Video size={18} className="text-white/50" />
       </div>
 
-      <div className="flex flex-1 flex-col justify-end gap-2.5 overflow-y-auto px-4 py-4">
+      {/* min-h-0 — та же причина, что в CommentsSheet выше: без него
+          flex-элемент с overflow-y-auto не скроллится, а раздувается. */}
+      <div className="min-h-0 flex flex-1 flex-col justify-end gap-2.5 overflow-y-auto px-4 py-4">
         {timeline.length > 0 ? (
           timeline.map((item, i) => {
             // Аватар и "хвостик" — только у первого сообщения в серии
