@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import NextLink from "next/link";
-import { Home, AtSign, HelpCircle, LogOut } from "lucide-react";
+import { Home, AtSign, HelpCircle, LogOut, ShieldCheck } from "lucide-react";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import { SideNav, SideNavItem } from "@astryxdesign/core/SideNav";
 import { Avatar } from "@astryxdesign/core/Avatar";
@@ -69,7 +69,22 @@ export function DashboardShell({
               />
             </div>
           }
-          footer={<SideNavItem label="Выйти" icon={LogOut} onClick={handleLogout} />}
+          footer={
+            <>
+              {/* Временное размещение "пока что" — публичная страница
+                  (/privacy-policy, вне /dashboard/**, не гейтится proxy.ts),
+                  но пока без отдельного маркетингового сайта/футера ссылку
+                  положить больше некуда. Контент там — MVP-заглушка, см.
+                  TODO в content/legal/privacy-policy.md. */}
+              <SideNavItem
+                label="Политика конфиденциальности"
+                icon={ShieldCheck}
+                href="/privacy-policy"
+                as={NextLink}
+              />
+              <SideNavItem label="Выйти" icon={LogOut} onClick={handleLogout} />
+            </>
+          }
         >
           <SideNavItem
             label="Главная"
