@@ -22,7 +22,6 @@ import { Link } from "@astryxdesign/core/Link";
 import { Badge } from "@astryxdesign/core/Badge";
 import { Banner } from "@astryxdesign/core/Banner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
-import { ActiveStatusBadge } from "@/shared/components/ActiveStatusBadge";
 
 export default function TemplatesPage() {
   const params = useParams();
@@ -167,7 +166,25 @@ export default function TemplatesPage() {
           {templates.map((tpl) => {
             const post = findMedia(tpl.post_id);
             return (
-              <Card key={tpl.id} padding={5}>
+              // Статус "включён/выключен" — не Badge (см. переписку: у
+              // самого Astryx в доках Badge явный совет не вешать
+              // success-бейдж на КАЖДУЮ карточку одинаково — "reserve
+              // badges for the exceptional ones", иначе он превращается в
+              // шум, не в информацию). Вместо этого — цветная полоска
+              // слева (border-l, зелёная/нейтральная) + приглушение всей
+              // карточки (opacity), когда шаблон выключен: считывается
+              // периферийным зрением при скролле списка, не требует
+              // текста, и выключенные шаблоны физически "отступают"
+              // визуально, а не спорят за внимание с активными.
+              <Card
+                key={tpl.id}
+                padding={5}
+                className={`border-l-4 ${
+                  tpl.is_active
+                    ? "border-l-success"
+                    : "border-l-border-strong opacity-60"
+                }`}
+              >
                 <div className="mb-3 flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
                     {post?.thumbnail_url || post?.media_url ? (
@@ -198,16 +215,15 @@ export default function TemplatesPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {tpl.require_follow_check && (
+                  {tpl.require_follow_check && (
+                    <div className="shrink-0">
                       <Badge
                         variant="blue"
                         icon={<ShieldCheck size={12} />}
                         label="Подписка"
                       />
-                    )}
-                    <ActiveStatusBadge isActive={tpl.is_active} />
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 <Stack gap={1} className="mb-4">
