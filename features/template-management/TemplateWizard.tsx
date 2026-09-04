@@ -14,6 +14,10 @@ import { Card } from "@astryxdesign/core/Card";
 import { RadioList, RadioListItem } from "@astryxdesign/core/RadioList";
 import { Switch } from "@astryxdesign/core/Switch";
 import { Banner } from "@astryxdesign/core/Banner";
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@astryxdesign/core/SegmentedControl";
 import { createTemplate, updateTemplate } from "@/entities/template/api";
 import { ApiError } from "@/shared/api/client";
 import type { Template, TemplateInput } from "@/entities/template/types";
@@ -85,6 +89,11 @@ export function TemplateWizard({
   onSaved,
 }: TemplateWizardProps) {
   const [step, setStep] = useState<WizardStep>(0);
+  // Форма и превью телефона на десктопе (≥1024px, стандартный и
+  // единственный брейкпойнт в проекте — Tailwind lg:) всегда видны рядом.
+  // Ниже 1024px рядом не помещаются — переключаются табом, см. рендер
+  // ниже (SegmentedControl, видим только на мобилке через lg:hidden).
+  const [mobileView, setMobileView] = useState<"form" | "preview">("form");
   const [scope, setScope] = useState<"post" | "any">(
     editingTemplate?.post_id ? "post" : "any",
   );
@@ -385,8 +394,26 @@ export function TemplateWizard({
         </Text>
       </header>
 
+      {/* Только мобилка (<1024px) — на десктопе форма и превью и так видны
+          одновременно, переключатель там не нужен (lg:hidden). */}
+      <div className="border-b border-border px-6 py-3 lg:hidden">
+        <SegmentedControl
+          label="Показать форму или превью"
+          value={mobileView}
+          onChange={(v) => setMobileView(v as "form" | "preview")}
+          layout="fill"
+        >
+          <SegmentedControlItem value="form" label="Форма" />
+          <SegmentedControlItem value="preview" label="Превью" />
+        </SegmentedControl>
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
-        <div className="w-full max-w-[420px] shrink-0 overflow-y-auto px-6 py-8 lg:border-r lg:border-border lg:px-8">
+        <div
+          className={`${
+            mobileView === "preview" ? "hidden" : "block"
+          } w-full max-w-[420px] shrink-0 overflow-y-auto px-6 py-8 lg:block lg:border-r lg:border-border lg:px-8`}
+        >
           {step === 0 && (
             <>
               <Heading level={2} className="mb-1 text-lg font-medium">
@@ -702,7 +729,11 @@ export function TemplateWizard({
           )}
         </div>
 
-        <div className="hidden flex-1 items-center justify-center overflow-hidden bg-body p-10 lg:flex">
+        <div
+          className={`${
+            mobileView === "form" ? "hidden" : "flex"
+          } flex-1 items-center justify-center overflow-hidden bg-body p-10 lg:flex`}
+        >
           <PhonePreview
             step={step === 0 ? 0 : step === 3 ? 2 : 1}
             username={username}
