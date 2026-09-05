@@ -176,7 +176,7 @@ export const instaReplyTheme = {
     "--radius-none": "0px",
     "--radius-inner": "0.375rem",
     "--radius-element": "0.625rem",
-    "--radius-container": "0.75rem",
+    "--radius-container": "1.25rem",
     "--radius-page": "1.75rem",
     "--radius-full": "9999px",
     "--shadow-low": "0 2px 4px light-dark(oklch(0 0 0 / 5%), oklch(0 0 0 / 25%)), 0 4px 8px light-dark(oklch(0 0 0 / 10%), oklch(0 0 0 / 40%)), inset 0 0 0 1px light-dark(transparent, oklch(1 0 0 / 8%))",

@@ -169,7 +169,7 @@ function DashboardContent() {
 
           {hasAccount ? (
             <StatsRow
-              accountsCount={accounts.length}
+              accounts={accounts}
               activeTemplatesCount={activeCount}
               inactiveTemplatesCount={inactiveCount}
               loading={false}
@@ -216,6 +216,7 @@ function DashboardContent() {
                   label={card.title}
                   padding={4}
                   width={280}
+                  elevation="med"
                 >
                   <Text weight="medium" className="mb-4 block">
                     {card.title}

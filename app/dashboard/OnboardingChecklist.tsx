@@ -34,7 +34,7 @@ export function OnboardingChecklist({
   // галочкой на всех трёх шагах сам по себе читается как "всё готово",
   // отдельное пустое состояние тут не нужно.
   return (
-    <Card padding={5}>
+    <Card padding={5} elevation="low">
       <div className="mb-3 flex items-center justify-between">
         <Text weight="medium">Быстрый старт</Text>
         <Text color="accent" type="supporting" weight="medium">

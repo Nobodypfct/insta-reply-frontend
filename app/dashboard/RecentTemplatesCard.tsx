@@ -87,7 +87,7 @@ export function RecentTemplatesCard({
   entries: RecentTemplateEntry[];
 }) {
   return (
-    <Card padding={5}>
+    <Card padding={5} elevation="low">
       <div className="mb-4 flex items-center justify-between">
         <Text weight="medium">Последние шаблоны</Text>
         <Link href="/dashboard/accounts" as={NextLink} isStandalone size="sm">

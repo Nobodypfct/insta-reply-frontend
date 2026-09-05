@@ -26,9 +26,18 @@ import { neutralTheme } from "@astryxdesign/theme-neutral";
  * (белый), что даёт отличный контраст на нашем тёмном фиолетовом
  * (`#3E0697`). Dark-режим темы этот проект не использует вообще.
  *
- * `extends: neutralTheme` подхватывает всё остальное (типографику,
- * радиусы, все прочие токены) как есть — переопределяются только три
- * accent-переменные.
+ * `--radius-container` — `neutralTheme` даёт 0.75rem (12px), макет
+ * (Claude Design канвас) рисовал карточки заметно круглее (~20px) —
+ * почти вдвое. Единственный способ поднять радиус у `Card`/
+ * `ClickableCard`/`TextInput` и т.п. — токен темы, у самих компонентов
+ * нет пропа под произвольный radius. Задевает ВСЕ карточки в
+ * приложении, не только /dashboard — осознанно: это токен дизайн-
+ * системы, точечно перекрутить его только для одной страницы нельзя
+ * (и не нужно — единый радиус по всему UI как раз то, что имелось в
+ * виду под "в соответствии с этим дизайном").
+ *
+ * `extends: neutralTheme` подхватывает всё остальное (типографику, все
+ * прочие токены) как есть.
  */
 export const customTheme = defineTheme({
   name: "insta-reply",
@@ -37,5 +46,6 @@ export const customTheme = defineTheme({
     "--color-accent": "var(--color-text-purple)",
     "--color-text-accent": "var(--color-text-purple)",
     "--color-icon-accent": "var(--color-text-purple)",
+    "--radius-container": "1.25rem",
   },
 });
