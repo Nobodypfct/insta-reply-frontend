@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Zap, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getAccounts } from "@/entities/ig-account/api";
 import type { IgAccount } from "@/entities/ig-account/types";
@@ -13,32 +13,14 @@ import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
-import { Badge } from "@astryxdesign/core/Badge";
-import { ClickableCard } from "@astryxdesign/core/ClickableCard";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { StatsRow } from "./StatsRow";
+import { StarterCards } from "./StarterCards";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import {
   RecentTemplatesCard,
   type RecentTemplateEntry,
 } from "./RecentTemplatesCard";
-
-type StarterCard = {
-  title: string;
-  popular?: boolean;
-  // Технических флоу — 2 (см. entities/template/types.ts "План: типы
-  // автоматизаций"): "Автоответ на комментарии" и "Собирайте лиды через
-  // комментарии" — один и тот же comment→DM механизм под разным
-  // маркетинговым текстом, ведут в один и тот же визард; "Отвечайте на
-  // все DM" — генуинно другой (DmTemplateWizard).
-  templateType: "comment" | "dm";
-};
-
-const STARTER_CARDS: StarterCard[] = [
-  { title: "Автоответ на комментарии", popular: true, templateType: "comment" },
-  { title: "Собирайте лиды через комментарии", templateType: "comment" },
-  { title: "Отвечайте на все DM", templateType: "dm" },
-];
 
 function DashboardContent() {
   const supabase = createClient();
@@ -54,9 +36,9 @@ function DashboardContent() {
   const [displayName, setDisplayName] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<IgAccount[]>([]);
-  const [templateEntries, setTemplateEntries] = useState<
-    RecentTemplateEntry[]
-  >([]);
+  const [templateEntries, setTemplateEntries] = useState<RecentTemplateEntry[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -129,7 +111,7 @@ function DashboardContent() {
   const recentEntries = templateEntries.slice(-3).reverse();
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
+    <div className="px-8 py-8">
       {emailVerified && (
         <div className="mb-6">
           <Banner
@@ -148,105 +130,85 @@ function DashboardContent() {
         </div>
       )}
 
-      <Heading level={1} className="mb-6 text-2xl font-semibold">
-        Главная
-      </Heading>
-
-      {/* Скелетон вместо голого "Загрузка…" — те же размеры, что и
-          реальный контент, чтобы страница не "прыгала" при подгрузке. */}
-      {loading ? (
-        <>
-          <Skeleton width={280} height={52} radius={2} />
-          <div className="mb-8 mt-3">
-            <Skeleton width={220} height={20} radius={2} />
-          </div>
-        </>
-      ) : (
-        <>
-          <Heading level={2} className="mb-6 break-words text-5xl font-bold">
-            Привет, {displayName}!
-          </Heading>
-
-          {hasAccount ? (
-            <StatsRow
-              accounts={accounts}
-              activeTemplatesCount={activeCount}
-              inactiveTemplatesCount={inactiveCount}
-              loading={false}
-            />
-          ) : (
-            <div className="mb-8">
-              <EmptyState
-                icon={<Users size={32} />}
-                title="Пока нет подключённых аккаунтов"
-                description="Подключите Instagram, чтобы включить автоответ на комментарии и DM."
-                actions={
-                  <Button
-                    variant="primary"
-                    label="Подключить Instagram"
-                    onClick={handleConnect}
-                  />
-                }
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      <div className="flex flex-col gap-6 lg:flex-row">
+      {/* Две колонки от самого верха: правый рельс (чек-лист + последние
+          шаблоны) начинается на одной высоте с приветствием, как на макете,
+          а не под блоком статистики. */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
         <div className="min-w-0 flex-1">
+          {/* Надзаголовок-эйбрау, не отдельный <h1>: настоящий заголовок
+              страницы — само приветствие ниже. */}
+          <Text
+            type="label"
+            color="secondary"
+            className="mb-2.5 block text-[13px] font-bold uppercase tracking-[0.06em]"
+          >
+            Главная
+          </Text>
+
+          {/* Скелетон вместо голого "Загрузка…" — те же размеры, что и
+              реальный контент, чтобы страница не "прыгала" при подгрузке. */}
+          {loading ? (
+            <>
+              <Skeleton width={280} height={38} radius={2} />
+              <div className="mb-8 mt-4">
+                <Skeleton width={520} height={96} radius={2} />
+              </div>
+            </>
+          ) : (
+            <>
+              <Heading
+                level={1}
+                className="mb-8 break-words text-[30px] font-extrabold leading-tight tracking-tight"
+              >
+                Привет, {displayName}!
+              </Heading>
+
+              {hasAccount ? (
+                <StatsRow
+                  accounts={accounts}
+                  activeTemplatesCount={activeCount}
+                  inactiveTemplatesCount={inactiveCount}
+                  loading={false}
+                />
+              ) : (
+                <div className="mb-8">
+                  <EmptyState
+                    icon={<Users size={32} />}
+                    title="Пока нет подключённых аккаунтов"
+                    description="Подключите Instagram, чтобы включить автоответ на комментарии и DM."
+                    actions={
+                      <Button
+                        variant="primary"
+                        label="Подключить Instagram"
+                        onClick={handleConnect}
+                      />
+                    }
+                  />
+                </div>
+              )}
+            </>
+          )}
+
           {/* Приглушаем секцию, когда подключать автоответ ещё не к чему —
               карточки при этом остаются кликабельными: href уже безопасно
               уводит на /dashboard/accounts, когда accounts.length !== 1
               (см. ветвление ниже, не менялось). */}
           <div className={!hasAccount && !loading ? "opacity-50" : undefined}>
-            <Heading level={3} className="mb-4 text-xl font-semibold">
+            <Heading
+              level={2}
+              className="mb-[18px] text-[17px] font-extrabold tracking-tight"
+            >
               Начать здесь
             </Heading>
 
-            <div className="flex flex-wrap gap-4">
-              {STARTER_CARDS.map((card) => (
-                <ClickableCard
-                  key={card.title}
-                  href={
-                    accounts.length === 1
-                      ? `/dashboard/accounts/${accounts[0].id}/templates/new/${card.templateType}`
-                      : "/dashboard/accounts"
-                  }
-                  label={card.title}
-                  padding={4}
-                  width={280}
-                  elevation="med"
-                >
-                  <Text weight="medium" className="mb-4 block">
-                    {card.title}
-                  </Text>
-                  <div className="flex items-center justify-between gap-2">
-                    <Text
-                      color="secondary"
-                      type="supporting"
-                      className="flex items-center gap-1.5"
-                    >
-                      <Zap size={14} className="shrink-0" />
-                      Быстрая автоматизация
-                    </Text>
-                    {card.popular && (
-                      <Badge
-                        variant="orange"
-                        label="ПОПУЛЯРНОЕ"
-                        className="shrink-0"
-                      />
-                    )}
-                  </div>
-                </ClickableCard>
-              ))}
-            </div>
+            <StarterCards accounts={accounts} />
+
+            {!hasAccount && !loading && (
+              <Text color="secondary" type="supporting" className="mt-3 block">
+                Сначала подключите аккаунт — тогда карточки заработают.
+              </Text>
+            )}
           </div>
-          {!hasAccount && !loading && (
-            <Text color="secondary" type="supporting" className="mt-3 block">
-              Сначала подключите аккаунт — тогда карточки заработают.
-            </Text>
-          )}
         </div>
 
         {!loading && (

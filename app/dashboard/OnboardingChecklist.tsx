@@ -36,8 +36,10 @@ export function OnboardingChecklist({
   return (
     <Card padding={5} elevation="low">
       <div className="mb-3 flex items-center justify-between">
-        <Text weight="medium">Быстрый старт</Text>
-        <Text color="accent" type="supporting" weight="medium">
+        <Text weight="bold" className="text-[14px]">
+          Быстрый старт
+        </Text>
+        <Text color="accent" type="supporting" weight="bold">
           {doneCount} из {steps.length}
         </Text>
       </div>
@@ -49,7 +51,7 @@ export function OnboardingChecklist({
           isLabelHidden
           value={doneCount}
           max={steps.length}
-          variant="success"
+          variant="accent"
         />
       </div>
 
@@ -59,7 +61,7 @@ export function OnboardingChecklist({
             <div
               className={
                 step.done
-                  ? "flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success text-on-success"
+                  ? "flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-bg text-on-accent"
                   : "h-5 w-5 shrink-0 rounded-full border-2 border-strong"
               }
             >

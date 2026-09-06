@@ -19,7 +19,8 @@ export type RecentTemplateEntry = {
 /** Одна строка списка — свой локальный `isActive`/`error`, тот же паттерн
  * (`changeAction` не ловит реджект сам — см. TemplateCard.tsx и CLAUDE.md
  * "ГРАБЛИ: Switch's changeAction"), чтобы ошибка одной строки не мешала
- * соседним и не роняла страницу. */
+ * соседним и не роняла страницу. Выключенный шаблон приглушается целиком
+ * (иконка, название, тумблер) — как на макете. */
 function RecentTemplateRow({ entry }: { entry: RecentTemplateEntry }) {
   const { accountId, template: tpl } = entry;
   const [isActive, setIsActive] = useState(tpl.is_active);
@@ -31,14 +32,27 @@ function RecentTemplateRow({ entry }: { entry: RecentTemplateEntry }) {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-accent">
+      <div className={`flex items-center gap-3 ${isActive ? "" : "opacity-55"}`}>
+        <div
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${
+            isActive ? "bg-accent-muted text-accent" : "bg-muted text-secondary"
+          }`}
+        >
           {isDm ? <MessagesSquare size={15} /> : <MessageSquare size={15} />}
         </div>
-        {/* Link не принимает className — усечение и раскладка через его
-            собственные пропы (maxLines/display), обёртка снаружи под flex-1 */}
-        <div className="min-w-0 flex-1">
-          <Link href={detailHref} as={NextLink} isStandalone maxLines={1}>
+        {/* Link не принимает className — усечение через его собственные
+            пропы (display + maxLines), обёртка снаружи под flex-1. */}
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <Link
+            href={detailHref}
+            as={NextLink}
+            isStandalone
+            display="block"
+            maxLines={1}
+            size="sm"
+            weight="bold"
+            color={isActive ? "primary" : "secondary"}
+          >
             {displayName}
           </Link>
         </div>
@@ -89,7 +103,9 @@ export function RecentTemplatesCard({
   return (
     <Card padding={5} elevation="low">
       <div className="mb-4 flex items-center justify-between">
-        <Text weight="medium">Последние шаблоны</Text>
+        <Text weight="bold" className="text-[14px]">
+          Последние шаблоны
+        </Text>
         <Link href="/dashboard/accounts" as={NextLink} isStandalone size="sm">
           Все
         </Link>
@@ -99,7 +115,7 @@ export function RecentTemplatesCard({
         <EmptyState
           isCompact
           title="Шаблонов пока нет"
-          description="Создайте первый через карточки ниже."
+          description="Создайте первый через карточки слева."
         />
       ) : (
         <div className="flex flex-col gap-4">

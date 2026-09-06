@@ -90,3 +90,31 @@ body {
     background-color: rgba(255, 255, 255, 0.4);
   }
 }
+
+/*
+ * Промо-карточка в сайдбаре ("Подключите ещё один аккаунт", см.
+ * DashboardShell.tsx). Мягкий сине-голубой градиент — единственная
+ * поверхность в UI, которой в палитре Astryx нет эквивалента (там только
+ * плоские hue-токены, градиентов система не описывает), поэтому значения
+ * живут здесь, в CSS, а не инлайном в JSX — тот же приём и та же причина,
+ * что у .mock-scroll выше. Значения взяты 1:1 из макета (Claude Design
+ * канвас, oklch).
+ */
+@layer components {
+  .sidenav-promo {
+    background: linear-gradient(
+      160deg,
+      oklch(93% 0.045 250),
+      oklch(96% 0.03 200)
+    );
+  }
+  .sidenav-promo-title {
+    color: oklch(28% 0.05 250);
+  }
+  .sidenav-promo-text {
+    color: oklch(42% 0.03 250);
+  }
+  .sidenav-promo-glyph {
+    color: oklch(60% 0.15 163 / 0.28);
+  }
+}

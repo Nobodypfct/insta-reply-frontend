@@ -102,7 +102,7 @@ export const instaReplyTheme = {
     "--color-background-card": "light-dark(#ffffff, #1b1b1b)",
     "--color-background-popover": "light-dark(#ffffff, #1b1b1b)",
     "--color-background-muted": "light-dark(#f1f1f1, #1b1b1b)",
-    "--color-accent": "var(--color-text-purple)",
+    "--color-accent": "oklch(60% 0.15 163)",
     "--color-accent-muted": "light-dark(#f1f1f1, #262626)",
     "--color-neutral": "light-dark(#0000000F, #FFFFFF1A)",
     "--color-overlay": "light-dark(#00000080, #000000CC)",
@@ -111,14 +111,14 @@ export const instaReplyTheme = {
     "--color-text-primary": "light-dark(#171717, #fafafa)",
     "--color-text-secondary": "light-dark(#525252, #a3a3a3)",
     "--color-text-disabled": "light-dark(#a3a3a3, #525252)",
-    "--color-text-accent": "var(--color-text-purple)",
+    "--color-text-accent": "oklch(48% 0.12 163)",
     "--color-on-dark": "#ffffff",
     "--color-on-light": "#171717",
     "--color-on-accent": "light-dark(#ffffff, #171717)",
     "--color-on-success": "light-dark(#ffffff, #171717)",
     "--color-on-error": "light-dark(#ffffff, #171717)",
     "--color-on-warning": "#171717",
-    "--color-icon-accent": "var(--color-text-purple)",
+    "--color-icon-accent": "oklch(55% 0.14 163)",
     "--color-icon-primary": "light-dark(#171717, #fafafa)",
     "--color-icon-secondary": "light-dark(#737373, #a3a3a3)",
     "--color-icon-disabled": "light-dark(#a3a3a3, #525252)",
@@ -419,6 +419,15 @@ export const instaReplyTheme = {
     "section": {
       "base": {
         "padding": "var(--spacing-3)"
+      }
+    },
+    "app-shell-sidenav": {
+      "base": {
+        "margin": "16px 0 16px 16px",
+        "borderRadius": "22px",
+        "backgroundColor": "var(--color-background-surface)",
+        "boxShadow": "0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 28px rgba(0, 0, 0, 0.05)",
+        "borderInlineEnd": "none"
       }
     }
   },
