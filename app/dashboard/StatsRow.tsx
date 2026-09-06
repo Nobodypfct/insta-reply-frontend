@@ -70,7 +70,9 @@ export function StatsRow({
     <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
       {stats.map((stat, i) => (
         <div key={stat.label}>
-          <Card padding={4} elevation="low">
+          {/* height=100% — у карточки с аккаунтами есть лишняя строка с
+              аватарками, без этого она получалась выше соседних. */}
+          <Card padding={4} elevation="low" height="100%">
             <div className="mb-3 flex items-center gap-3">
               <div
                 className={`flex h-[38px] w-[38px] items-center justify-center rounded-[12px] ${stat.chipClassName}`}

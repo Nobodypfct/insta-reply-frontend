@@ -49,9 +49,18 @@ export const customTheme = defineTheme({
     "--radius-container": "1.25rem",
   },
   components: {
+    // Ширина сайдбара: у SideNav нет пропа под неё (только `resizable`, а он
+    // тянет за собой ручку-ресайзер), дефолт — 260px в его собственном
+    // классе. На макете 240px, поэтому правим через тот же штатный
+    // тематический таргет.
+    "side-nav": {
+      base: {
+        width: "240px",
+      },
+    },
     "app-shell-sidenav": {
       base: {
-        margin: "16px 0 16px 16px",
+        margin: "16px",
         borderRadius: "22px",
         backgroundColor: "var(--color-background-surface)",
         boxShadow:

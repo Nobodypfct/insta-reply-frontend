@@ -118,3 +118,19 @@ body {
     color: oklch(60% 0.15 163 / 0.28);
   }
 }
+
+/*
+ * "Выйти" в сайдбаре — красный, как на макете. У SideNavItem нет ни пропа
+ * цвета, ни className, а тематический override `side-nav-item` покрасил бы
+ * ВСЕ пункты разом, поэтому целимся точечно: обёртка со своим классом +
+ * стабильные классы Astryx (.astryx-side-nav-item / .astryx-icon — те же,
+ * что использует система тем, не приватные StyleX-хеши). Цвет иконки
+ * задаётся отдельно: она красится своим .astryx-icon, а не наследует
+ * currentColor от строки.
+ */
+@layer components {
+  .sidenav-logout .astryx-side-nav-item,
+  .sidenav-logout .astryx-side-nav-item .astryx-icon {
+    color: var(--color-error);
+  }
+}

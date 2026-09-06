@@ -421,9 +421,14 @@ export const instaReplyTheme = {
         "padding": "var(--spacing-3)"
       }
     },
+    "side-nav": {
+      "base": {
+        "width": "240px"
+      }
+    },
     "app-shell-sidenav": {
       "base": {
-        "margin": "16px 0 16px 16px",
+        "margin": "16px",
         "borderRadius": "22px",
         "backgroundColor": "var(--color-background-surface)",
         "boxShadow": "0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 28px rgba(0, 0, 0, 0.05)",

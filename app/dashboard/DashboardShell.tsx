@@ -62,7 +62,8 @@ export function DashboardShell({
     router.push("/login");
   }
 
-  const isAccountsSection = pathname?.startsWith("/dashboard/accounts") ?? false;
+  const isAccountsSection =
+    pathname?.startsWith("/dashboard/accounts") ?? false;
   const isHome = !isAccountsSection;
 
   return (
@@ -75,7 +76,10 @@ export function DashboardShell({
               <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-accent-bg text-on-accent">
                 <MessageCircle size={16} strokeWidth={2.2} />
               </div>
-              <Text weight="bold" className="text-[15px] tracking-tight">
+              <Text
+                weight="bold"
+                className="whitespace-nowrap text-[15px] tracking-tight"
+              >
                 Insta-Reply
               </Text>
             </div>
@@ -109,7 +113,13 @@ export function DashboardShell({
                 href="/privacy-policy"
                 as={NextLink}
               />
-              <SideNavItem label="Выйти" icon={LogOut} onClick={handleLogout} />
+              <div className="sidenav-logout">
+                <SideNavItem
+                  label="Выйти"
+                  icon={LogOut}
+                  onClick={handleLogout}
+                />
+              </div>
             </>
           }
         >
